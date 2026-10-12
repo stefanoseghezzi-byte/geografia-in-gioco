@@ -1,28 +1,43 @@
 <!doctype html>
-<html lang="it" data-tema="chiaro">
+<html lang="it" data-tema="scuro">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Geografia in gioco</title>
 <meta name="description" content="Giochi di geografia per la scuola media: l'Europa (seconda media) e il mondo (terza media). Stati, capitali, continenti ed elementi fisici.">
+<meta name="theme-color" content="#0A1120">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Chakra+Petch:wght@500;600;700&family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="stile.css">
 </head>
 <body>
 
 <header class="testata">
-  <button class="logo" id="logo" aria-label="Torna al menu"><span class="logo-ico">🧭</span><span>Geografia in gioco</span></button>
-  <div class="strumenti">
-    <button class="btn-strum" id="btnProgressi">📈 <span class="lbl">Progressi</span></button>
-    <button class="btn-strum" id="btnProfilo">👤 <span id="nomeProfilo">Io</span></button>
-    <button class="btn-strum" id="btnSuoni" aria-label="Attiva o disattiva i suoni">🔊</button>
-    <button class="btn-strum" id="btnTema" aria-label="Cambia tema chiaro/scuro">🌙</button>
+  <div class="testata-in">
+    <button class="logo" id="logo" aria-label="Geografia in gioco: torna al menu">
+      <span class="logo-ico"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></span>
+      <span class="lbl-logo">Geografia <em>in gioco</em></span>
+    </button>
+    <div class="strumenti">
+      <button class="btn-strum" id="btnProgressi"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18"/><path d="M6 16v-5"/><path d="M11 16V7"/><path d="M16 16v-8"/><path d="M21 16V4"/></svg><span class="lbl">Progressi</span></button>
+      <button class="btn-strum" id="btnSuoni" aria-label="Attiva o disattiva i suoni"></button>
+      <button class="btn-strum" id="btnTema" aria-label="Cambia tema chiaro/scuro"></button>
+      <button class="chip-profilo" id="btnProfilo" aria-label="Cambia profilo">
+        <span class="avatar" id="avatar">I</span>
+        <span class="cp-testo">
+          <span class="cp-riga"><span class="cp-nome" id="nomeProfilo">Io</span><span class="cp-liv" id="livProfilo">LIV 1</span></span>
+          <span class="xpbar"><i id="xpProfilo" style="width:0%"></i></span>
+        </span>
+      </button>
+    </div>
   </div>
 </header>
 
 <div id="panProfilo" class="pan-profilo" hidden>
   <b>Chi sta giocando?</b>
-  <p class="nota">Ogni profilo ha i suoi progressi e i suoi record, salvati su questo dispositivo.</p>
-  <div class="chips" id="listaProfili"></div>
+  <p class="nota">Ogni profilo ha i suoi progressi, i suoi record, la sua esperienza e le sue medaglie, salvati su questo dispositivo.</p>
+  <div class="chips" id="listaProfili" style="margin-top:12px"></div>
   <div class="nuovo-profilo">
     <input id="nuovoProfilo" type="text" maxlength="20" placeholder="Nuovo nome (es. Giulia)" aria-label="Nome del nuovo profilo">
     <button class="primario piccolo" id="aggiungiProfilo">Aggiungi</button>
@@ -30,38 +45,40 @@
 </div>
 
 <main id="home" class="schermata">
-  <nav class="sezioni" id="sezioni" aria-label="Scegli la sezione"></nav>
-
-  <section class="hero">
-    <h1 id="heroTitolo">Impara l'Europa giocando</h1>
-    <p class="hero-testo" id="heroTesto"></p>
-    <div class="hero-passi">
-      <div><span>📖</span><b>Studia</b><small>Esplora la mappa e leggi le schede, con una curiosità per ogni elemento.</small></div>
-      <div><span>🎯</span><b>Allenati</b><small>Giochi e quiz come sulla cartina muta, a tre livelli di difficoltà.</small></div>
-      <div><span>📈</span><b>Migliora</b><small>Guarda i tuoi progressi e ripassa gli errori che ripeti più spesso.</small></div>
+  <section class="hero" aria-labelledby="heroTitolo">
+    <div class="hero-sx">
+      <span class="eyebrow" id="heroClasse"></span>
+      <h1 id="heroTitolo"></h1>
+      <p class="hero-testo" id="heroTesto"></p>
+      <div class="hero-azioni">
+        <button class="primario" id="rapida"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="fill:currentColor;stroke:none"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>Partita rapida</button>
+        <button class="secondario" id="vaiGiochi">Scegli un gioco</button>
+      </div>
     </div>
+    <nav class="sezioni" id="sezioni" aria-label="Scegli la sezione"></nav>
   </section>
 
-  <div class="chips tabs" id="modi"></div>
+  <div class="blocco"><div class="seg" id="modi" role="group" aria-label="Tipo di geografia"></div></div>
 
-  <section id="sezCat" hidden>
-    <h2><span>1</span> Cosa vuoi studiare?</h2>
+  <section id="sezCat" class="blocco" hidden>
+    <h2 class="lbl-sez">Cosa vuoi studiare?</h2>
     <div class="chips" id="categorie"></div>
   </section>
 
-  <section>
-    <h2><span id="numLiv">1</span> Scegli il livello</h2>
-    <div class="chips" id="livelli"></div>
-    <p class="nota" id="descLivello"></p>
+  <section class="impostazioni" aria-label="Impostazioni della partita">
+    <div class="imp-liv">
+      <h2 class="lbl-sez">Livello</h2>
+      <div class="livelli" id="livelli"></div>
+    </div>
+    <div class="imp-qta">
+      <h2 class="lbl-sez">Domande</h2>
+      <div class="seg qta" id="quantita" role="group" aria-label="Quante domande"></div>
+    </div>
   </section>
 
-  <section>
-    <h2><span id="numQta">2</span> Quante domande?</h2>
-    <div class="chips" id="quantita"></div>
-  </section>
-
-  <section>
-    <h2><span id="numGioco">3</span> Scegli il gioco</h2>
+  <section id="sezGiochi" aria-labelledby="titoloGiochi">
+    <div class="titolo-giochi"><h2 id="titoloGiochi">Scegli il gioco</h2><span class="riepilogo-scelte" id="riepScelte"></span></div>
+    <div id="studioBox"></div>
     <div class="cards" id="giochi"></div>
   </section>
 
@@ -69,24 +86,40 @@
 </main>
 
 <main id="gioco" class="schermata" hidden>
-  <div class="barra">
-    <button class="btn-testo" id="esci">← Menu</button>
-    <div class="stat" id="stat"></div>
-  </div>
-  <div class="prog"><div id="barraProg"></div></div>
-  <div class="domanda" id="domanda"></div>
-
-  <div class="mappa-wrap">
-    <svg id="mappa" role="img" aria-label="Mappa" data-modo="stati"></svg>
-    <div class="zoom">
-      <button id="zPiu" aria-label="Ingrandisci" title="Ingrandisci">+</button>
-      <button id="zMeno" aria-label="Riduci" title="Riduci">−</button>
-      <button id="zReset" aria-label="Vista intera dell'Europa" title="Vista intera dell'Europa (torna alla mappa completa)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg></button>
-      <button id="zFull" aria-label="Schermo intero" title="Schermo intero"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <div class="hud">
+    <button class="btn-testo" id="esci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg>Menu</button>
+    <div class="hud-titolo"><b id="hudNome"></b><span class="hud-lbl" id="hudSub"></span></div>
+    <div class="hud-centro">
+      <span class="hud-lbl" id="stat" aria-live="polite"></span>
+      <div class="pips" id="pips" hidden></div>
+      <div class="prog" id="progBox"><div id="barraProg"></div></div>
+    </div>
+    <div class="hud-pods" id="hudPods">
+      <div class="pod serie spenta" id="podSerie" title="Risposte giuste di fila: da 3 in su ogni risposta vale un bonus">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 3.3 4.5 5.4 4.5 10a4.5 4.5 0 0 1-9 0c0-1.9.9-3.3 2-4.3-.1 1.6.6 2.8 1.6 3.3.3-3.6.3-6.3.9-9z"/></svg>
+        <span><small>SERIE</small><b id="hudSerie">×0</b></span>
+      </div>
+      <div class="pod" id="podPunti"><span><small>PUNTI</small><b id="hudPunti">0</b></span></div>
+      <div class="pod xp"><span><small>XP</small><b id="hudXp">+0</b></span></div>
+      <div class="pod"><span><small>TEMPO</small><b id="hudTempo">0:00</b></span></div>
     </div>
   </div>
 
-  <div class="pannello" id="pannello"></div>
+  <div class="campo">
+    <div class="mappa-wrap">
+      <svg id="mappa" role="img" aria-label="Mappa" data-modo="stati"></svg>
+      <div class="zoom">
+        <button id="zPiu" aria-label="Ingrandisci" title="Ingrandisci">+</button>
+        <button id="zMeno" aria-label="Riduci" title="Riduci">−</button>
+        <button id="zReset" aria-label="Vista intera dell'Europa" title="Vista intera dell'Europa (torna alla mappa completa)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg></button>
+        <button id="zFull" aria-label="Schermo intero" title="Schermo intero"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      </div>
+    </div>
+    <div class="lato">
+      <div class="domanda" id="domanda" aria-live="polite"></div>
+      <div class="pannello" id="pannello"></div>
+    </div>
+  </div>
 </main>
 
 <main id="fine" class="schermata" hidden></main>
