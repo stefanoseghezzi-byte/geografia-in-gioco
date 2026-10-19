@@ -1,0 +1,3 @@
+{
+  "rewrites": [{ "source": "/api/verifica", "destination": "/api/verifica.js" }]
+}
