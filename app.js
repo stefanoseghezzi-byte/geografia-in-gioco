@@ -43,6 +43,7 @@ const GIOCHI = [
   { id: 'trova', ico: '🎯', ic: 'mirino', nome: 'Trova sulla mappa', desc: 'Leggi il nome (di un fiume, un monte, un mare…) e cliccalo sulla mappa.', modo: 'fisico', sez: TUTTE },
   { id: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che cos\'è?', desc: 'Un elemento è evidenziato: scegli il nome giusto.', modo: 'fisico', sez: TUTTE },
   { id: 'legami', ico: '🔗', ic: 'link', nome: 'Stati collegati', desc: 'Leggi il nome di un mare, un fiume, un monte… e seleziona sulla mappa gli Stati che tocca. Senza aiuti: devi ricordarlo!', modo: 'fisico', sez: TUTTE },
+  { id: 'verifica', ico: '📝', ic: 'matita', nome: 'Simulazione della verifica', desc: 'Geografia fisica e politica insieme, come in classe: il voto arriva alla fine.', modo: 'verifica', sez: ['europa'] },
   { id: 'elementi', ico: '🧩', ic: 'strati', nome: 'Cosa lo tocca?', desc: 'Uno Stato è evidenziato: scegli quali elementi fisici (fiumi, monti, mari…) si trovano lì.', modo: 'fisico', sez: TUTTE },
 ];
 const TIPI = { cont: 'continente', elementi: 'elementi collegati', stati: 'Stati collegati', moneta: 'moneta', lingua: 'lingua', area: 'posizione', abitanti: 'abitanti', superficie: 'superficie', ue: 'UE', cap: 'capitale' };
@@ -106,6 +107,7 @@ const ICONE = {
   luna: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>',
   sole: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   spunta: '<path d="m5 12 5 5 9-10"/>',
+  matita: '<path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
 };
 const icona = (n, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n] || ''}</svg>`;
 const STELLA = '<path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1l-5.7 3.1 1.2-6.3-4.7-4.4 6.4-.8z"/>';
@@ -303,6 +305,16 @@ function disegnaHome() {
     if (modo === 'fisico') vista.innerHTML = `<img src="${SZ.rilievo}" alt="">`; else vista.appendChild(miniMappa(pool(livello).map(p => p.id)));
     b.onclick = () => avvia('studio');
     SB.appendChild(b);
+  }
+  // simulazione della verifica: solo Europa, vale per fisica e politica insieme (non dipende da livello e domande)
+  const VB = $('verificaBox'); VB.innerHTML = '';
+  if (SZ.id === 'europa') {
+    const rec = mp.get(SZ.rec + 'verifica', null), b = document.createElement('button'); b.className = 'verifica-card';
+    b.innerHTML = `<span class="ico">${icona('matita')}</span><span class="vc-testo"><span class="hud-lbl">Fisica + politica · ${VER_TOT} domande</span>
+      <b>Simulazione della verifica</b><span class="d">${VER_PARTI.fisica} elementi fisici da riconoscere, ${VER_PARTI.trova} Stati da trovare sulla mappa e ${VER_PARTI.ue} domande sull'Unione europea. Come in classe: correzione e voto arrivano solo alla fine.</span></span>
+      <span class="vc-piede"><span class="rec ${rec === null ? 'nuova' : ''}">${rec === null ? 'MAI FATTA' : 'MIGLIOR VOTO ' + votoTxt(votoDa(rec / 100))}</span><span class="gioca">Inizia ${PLAY}</span></span>`;
+    b.onclick = avviaVerifica;
+    VB.appendChild(b);
   }
   const G = $('giochi'); G.innerHTML = '';
   giochiHome().filter(g => g.id !== 'studio').forEach(g => {
@@ -607,7 +619,7 @@ function aggiornaStat() {
   $('hudTempo').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const pt = Math.round(S.punti * 10) / 10;
   $('hudXp').textContent = '+' + Math.round(S.xp);
-  $('podSerie').hidden = $('podPunti').hidden = !S.coda;
+  $('podSerie').hidden = $('podPunti').hidden = !S.coda || !!S.verifica; $('podXp').hidden = !!S.verifica;
   if (S.coda) {
     const n = S.coda.length, date = S.esiti.filter(x => x !== undefined).length;
     $('stat').innerHTML = `Domanda <b>${Math.min(S.i + 1, n)}</b> / ${n}`;
@@ -617,8 +629,8 @@ function aggiornaStat() {
     pips.hidden = !corte; $('progBox').hidden = corte;
     if (corte) {
       if (pips.children.length !== n) { pips.innerHTML = '<i></i>'.repeat(n); pips.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`; }
-      [...pips.children].forEach((x, k) => { x.className = S.esiti[k] === true ? 'ok' : S.esiti[k] === false ? 'ko' : k === S.i ? 'ora' : ''; });
-      pips.setAttribute('role', 'img'); pips.setAttribute('aria-label', `${date} risposte date su ${n}: ${S.esiti.filter(x => x === true).length} giuste`);
+      [...pips.children].forEach((x, k) => { x.className = S.verifica && S.esiti[k] !== undefined ? 'fatto' : S.esiti[k] === true ? 'ok' : S.esiti[k] === false ? 'ko' : k === S.i ? 'ora' : ''; });
+      pips.setAttribute('role', 'img'); pips.setAttribute('aria-label', `${date} risposte date su ${n}` + (S.verifica ? '' : `: ${S.esiti.filter(x => x === true).length} giuste`));
     } else $('barraProg').style.width = `${100 * Math.min(S.i, n) / n}%`;
   } else {
     $('stat').textContent = S.stat ? S.stat() : '';
@@ -1165,6 +1177,159 @@ function avviaElementi(soloIds) {
     };
   };
   prox();
+}
+
+// ---------- simulazione della verifica (solo Europa) ----------
+// Come in classe: niente aiuti né correzioni durante la prova; alla fine il voto in decimi e la correzione domanda per domanda.
+// Fisica: gli elementi del livello Facile. Politica: Stati dell'UE (senza Malta, microstato) + Norvegia, Islanda, Regno Unito, Ucraina.
+const VER_PARTI = { fisica: 13, trova: 7, ue: 5 }, VER_TOT = VER_PARTI.fisica + VER_PARTI.trova + VER_PARTI.ue;
+const VER_EXTRA = ['NOR', 'ISL', 'GBR', 'UKR'];
+const votoDa = frazione => Math.max(4, Math.round(frazione * 20) / 2);   // a mezzi voti, 4 è il voto più basso
+const votoTxt = v => Number.isInteger(v) ? String(v) : `${Math.floor(v)}½`;
+const giudizio = v => v >= 9.5 ? 'Ottimo' : v >= 8.5 ? 'Distinto' : v >= 7.5 ? 'Buono' : v >= 6 ? 'Sufficiente' : 'Non sufficiente';
+function avviaVerifica() {
+  suonoSerie(); clearInterval(timer);
+  modoAttivo = 'stati';
+  const stati = P.filter(p => (p.ue || VER_EXTRA.includes(p.id)) && !MICRO.includes(p.id)).map(p => p.id);
+  // UE: da 1 a 3 Stati fuori dall'UE, così la risposta non è sempre «sì»
+  const fuori = mescola(stati.filter(id => !per[id].ue)), nFuori = 1 + (Math.random() * 3 | 0);
+  const ue = mescola([...fuori.slice(0, nFuori), ...mescola(stati.filter(id => per[id].ue)).slice(0, VER_PARTI.ue - nFuori)]);
+  const trova = mescola(stati.filter(id => !ue.includes(id))).slice(0, VER_PARTI.trova);
+  const elementi = F.filter(f => f.liv === 1).map(f => f.id);
+  const coda = [...mescola(elementi).slice(0, VER_PARTI.fisica).map(id => ({ tipo: 'fisica', id })), ...trova.map(id => ({ tipo: 'trova', id })), ...ue.map(id => ({ tipo: 'ue', id }))];
+  S = { gioco: 'verifica', modo: 'verifica', cats: [], liv: 1, pool: [], elementi, i: 0, punti: 0, errori: [], t0: Date.now(), blocca: false, tent: 0, serie: 0, serieMax: 0, xp: 0, esiti: [],
+    verifica: true, coda, risposte: [], mappa: null };
+  $('hudNome').textContent = 'Simulazione della verifica';
+  $('hudSub').textContent = `${SZ.nome} · ${VER_TOT} domande`;
+  $('hudPods').hidden = false; $('stat').textContent = '';
+  vistaIntera(); sulClic = null; etichetteOn = false;
+  svg.parentElement.classList.remove('interattivo');
+  mostra('gioco');
+  timer = setInterval(aggiornaStat, 1000);
+  domandaVerifica();
+}
+// cambia cartina solo quando si passa dalla parte di fisica a quella di politica
+function mappaVerifica(m) {
+  if (S.mappa === m) return;
+  S.mappa = m; modoAttivo = m;
+  impostaPool(m === 'fisico' ? S.elementi : P.filter(p => !MICRO.includes(p.id)).map(p => p.id), m);
+}
+function domandaVerifica() {
+  if (S.i >= S.coda.length) return finisciVerifica();
+  const { tipo, id } = S.coda[S.i], ultima = S.i === S.coda.length - 1;
+  S.blocca = false; pulisciStati(); aggiornaStat();
+  $('pannello').innerHTML = ''; sulClic = null; svg.parentElement.classList.remove('interattivo');
+  let scelta = null;
+  const conferma = document.createElement('button'); conferma.className = 'primario'; conferma.disabled = true;
+  conferma.innerHTML = `${ultima ? 'Consegna la verifica' : 'Conferma e vai avanti'} <span class="tasto">INVIO</span>`;
+  conferma.onclick = () => {
+    if (scelta === null || S.blocca) return;
+    S.blocca = true; S.risposte[S.i] = scelta;
+    S.esiti[S.i] = tipo === 'ue' ? scelta === per[id].ue : scelta === id;
+    S.i++; domandaVerifica();
+  };
+  const scegliUna = opz => {
+    const box = document.createElement('div'); box.className = 'risposte';
+    opz.forEach(o => {
+      const b = document.createElement('button'); b.className = 'rispo'; b.textContent = o.testo; b.setAttribute('aria-pressed', 'false');
+      b.onclick = () => { if (S.blocca) return; scelta = o.v; box.querySelectorAll('.rispo').forEach(x => x.setAttribute('aria-pressed', x === b)); conferma.disabled = false; };
+      box.appendChild(b);
+    });
+    $('pannello').appendChild(box);
+  };
+  const parte = t => `<span class="ver-parte">${t}</span>`;
+  if (tipo === 'fisica') {
+    mappaVerifica('fisico'); statoClasse(id, 'evidenzia'); vaiA(id);
+    const f = fis[id], cf = cat(f.cat), dist = x => Math.hypot(f.c[0] - x.c[0], f.c[1] - x.c[1]);
+    const altri = S.elementi.map(x => fis[x]).filter(x => x.id !== id);
+    let cand = altri.filter(x => x.cat === f.cat).sort((x, y) => dist(x) - dist(y)).slice(0, 9);
+    if (cand.length < 3) cand = cand.concat(mescola(altri.filter(x => x.cat !== f.cat)).slice(0, 3 - cand.length));
+    $('domanda').innerHTML = `${parte('Parte 1 · Geografia fisica')}${cf.q}<small>Riconosci l'elemento evidenziato sulla carta fisica.</small>`;
+    scegliUna(mescola([f, ...mescola(cand).slice(0, 3)]).map(o => ({ testo: o.nome, v: o.id })));
+  } else if (tipo === 'trova') {
+    mappaVerifica('stati'); vistaIntera(); svg.parentElement.classList.add('interattivo');
+    $('domanda').innerHTML = `${parte('Parte 2 · Geografia politica')}Trova sulla carta: <b>${nome(id)}</b><small>Clicca lo Stato, poi conferma. Finché non confermi puoi cambiare idea.</small>`;
+    const msg = document.createElement('div'); msg.className = 'msg'; msg.textContent = 'Nessuno Stato selezionato.';
+    $('pannello').appendChild(msg);
+    sulClic = cl => {
+      if (S.blocca) return;
+      if (scelta) statoClasse(scelta, 'sel', false);
+      scelta = cl; statoClasse(cl, 'sel'); conferma.disabled = false;
+      msg.textContent = 'Stato selezionato (in azzurro). Conferma o clicca un altro Stato.';
+    };
+  } else {
+    mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
+    $('domanda').innerHTML = `${parte('Parte 2 · Geografia politica')}<b>${nome(id)}</b> (evidenziato) fa parte dell'Unione europea?`;
+    scegliUna([{ testo: 'Sì, è nell\'UE', v: true }, { testo: 'No, è fuori dall\'UE', v: false }]);
+  }
+  $('pannello').appendChild(conferma);
+}
+function finisciVerifica() {
+  clearInterval(timer); sulClic = null; pulisciStati();
+  const righe = S.coda.map((q, k) => ({ ...q, r: S.risposte[k], ok: S.esiti[k] }));
+  let serie = 0;
+  righe.forEach(q => {
+    const ch = q.tipo === 'ue' ? q.id + '|ue' : q.id;
+    registra(ch, q.ok); if (!q.ok) S.errori.push(ch);
+    serie = q.ok ? serie + 1 : 0; S.serieMax = Math.max(S.serieMax, serie);
+  });
+  const tot = righe.length, punti = righe.filter(q => q.ok).length, perc = Math.round(100 * punti / tot);
+  const voto = votoDa(punti / tot), sec = Math.floor((Date.now() - S.t0) / 1000);
+  const chiave = SZ.rec + 'verifica', rec = mp.get(chiave, null), nuovoRec = rec === null || perc > rec;
+  if (nuovoRec) mp.set(chiave, perc);
+  const sess = mp.get(kSess(), []);
+  sess.push({ t: Date.now(), g: 'verifica', m: 'verifica', l: 1, c: [], p: perc, n: tot, s: sec });
+  mp.set(kSess(), sess.slice(-300));
+  const bRec = nuovoRec && rec !== null ? XP_RECORD : 0, bPerf = perc === 100 ? XP_PERFETTO : 0;
+  const guadagno = punti * XP_RISPOSTA + bRec + bPerf, xpPrima = xpTot(), xpDopo = xpPrima + guadagno; mp.set('xp', xpDopo);
+  const ld = infoLiv(xpDopo), salito = ld.n > infoLiv(xpPrima).n;
+  const nuove = controllaMedaglie({ perc, stelle: stelleDa(perc), tot, xp: xpDopo });
+  const parti = [['fisica', 'Fisica'], ['trova', 'Trova'], ['ue', 'UE']].map(([t, n]) => {
+    const q = righe.filter(x => x.tipo === t), g = q.filter(x => x.ok).length;
+    return `<div><span class="hud-lbl">${n}</span><b>${g}<span class="su">/${q.length}</span></b></div>`;
+  }).join('');
+  const testoDom = q => q.tipo === 'fisica' ? cat(fis[q.id].cat).q : q.tipo === 'trova' ? `Trova: <b>${nome(q.id)}</b>` : `<b>${nome(q.id)}</b> è nell'UE?`;
+  const giusta = q => q.tipo === 'fisica' ? nome(q.id) : q.tipo === 'trova' ? nome(q.id) : per[q.id].ue ? 'Sì' : 'No';
+  const tua = q => q.tipo === 'ue' ? (q.r ? 'Sì' : 'No') : q.tipo === 'trova' ? nomeStato(q.r) : nome(q.r);
+  const correzione = righe.map((q, k) => `<li class="${q.ok ? 'ok' : 'ko'}"><span class="n">${k + 1}</span><span class="cr-testo">${testoDom(q)}
+    <small>${q.ok ? `Risposta: ${giusta(q)}` : `Hai risposto: ${tua(q)} · Giusta: <b>${giusta(q)}</b>`}</small></span></li>`).join('');
+  const errStati = [...new Set(righe.filter(q => !q.ok && q.tipo !== 'fisica').map(q => q.id))], errFis = righe.filter(q => !q.ok && q.tipo === 'fisica').map(q => q.id);
+  const mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
+  $('fine').innerHTML = `<div class="fine-griglia">
+    <section class="fine-esito" aria-labelledby="titoloFine">
+      <span class="hud-lbl">Simulazione della verifica · ${SZ.nome}</span>
+      <div class="voto ${voto >= 8 ? 'p-alto' : voto >= 6 ? 'p-medio' : 'p-basso'}" role="img" aria-label="Voto ${votoTxt(voto).replace('½', ' e mezzo')}"><small>VOTO</small><b>${votoTxt(voto)}</b></div>
+      <h1 id="titoloFine">${giudizio(voto)}</h1>
+      <div class="punteggio"><b>${punti}<span class="su">/${tot}</span></b><span>${perc}%</span></div>
+      <div class="mini-stat ver-parti">${parti}</div>
+      ${nuovoRec && rec !== null ? `<span class="nastro">${icona('trofeo')}NUOVO RECORD · PRIMA ${votoTxt(votoDa(rec / 100))}</span>` : rec === null ? `<span class="nastro">${icona('trofeo')}PRIMA VERIFICA</span>` : `<span class="hud-lbl">Miglior voto: ${votoTxt(votoDa(rec / 100))}</span>`}
+      <div class="xp-box">
+        <div class="xp-riga"><span>LIV ${ld.n} · ${ld.dentro} / ${ld.serve} XP</span><span class="piu">+${guadagno} XP</span></div>
+        <div class="xpbar grande" role="img" aria-label="Esperienza: ${ld.dentro} su ${ld.serve} per il livello ${ld.n + 1}"><i class="nuova" style="width:${ld.perc}%"></i></div>
+        <small>Tempo: ${mm}:${ss}. Il voto è calcolato in decimi a mezzi voti (minimo 4): per la verifica vera fanno fede i criteri dell'insegnante.</small>
+        ${salito ? `<div class="livello-su">Sei salito al livello ${ld.n}!</div>` : ''}
+      </div>
+    </section>
+    <div class="fine-dx">
+      ${nuove.length ? `<section class="riquadro" aria-labelledby="tNuove"><div class="riq-testa"><h2 id="tNuove">${nuove.length > 1 ? 'Nuove medaglie!' : 'Nuova medaglia!'}</h2></div>
+        <div class="medaglie compatte">${nuove.map(id => medagliaHtml(MEDAGLIE.find(m => m.id === id), true, true)).join('')}</div></section>` : ''}
+      <section class="riquadro" aria-labelledby="tCorr">
+        <div class="riq-testa"><h2 id="tCorr">Correzione</h2><span class="hud-lbl">${tot - punti} ${tot - punti === 1 ? 'errore' : 'errori'}</span></div>
+        <ol class="correzione">${correzione}</ol>
+      </section>
+      <div class="azioni-fine">
+        <button class="primario" id="ancora">${icona('ricarica')}Nuova verifica</button>
+        ${errStati.length ? '<button class="secondario rosso" id="ripStati">Ripassa gli Stati sbagliati</button>' : ''}
+        ${errFis.length ? '<button class="secondario rosso" id="ripFis">Ripassa gli elementi sbagliati</button>' : ''}
+        <button class="secondario" id="menu">Menu</button>
+      </div>
+    </div></div>`;
+  mostra('fine'); suono('fine', perc); aggiornaProfilo();
+  $('ancora').onclick = avviaVerifica;
+  if ($('ripStati')) $('ripStati').onclick = () => { modo = 'stati'; mem.set('modo', modo); avvia('trova', errStati); };
+  if ($('ripFis')) $('ripFis').onclick = () => { modo = 'fisico'; mem.set('modo', modo); avvia('indovina', errFis); };
+  $('menu').onclick = esciMenu;
+  $('ancora').focus({ preventScroll: true });
 }
 
 // ---------- fine partita ----------
