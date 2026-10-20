@@ -306,17 +306,20 @@ function disegnaHome() {
     b.onclick = () => avvia('studio');
     SB.appendChild(b);
   }
-  // simulazione della verifica: solo Europa, preparata dall'insegnante (vale per fisica e politica insieme, non dipende da livello e domande)
+  // simulazione della verifica: l'insegnante dà un codice (si scrive qui), oppure ci si allena con la verifica standard
   const VB = $('verificaBox'); VB.innerHTML = '';
-  if (SZ.id === 'europa') {
-    const cfg = verNormalizza(cfgAttuale()), n = verTot(cfg), rec = mp.get(SZ.rec + 'verifica', null), b = document.createElement('button'); b.className = 'verifica-card';
-    b.innerHTML = `<span class="ico">${icona('matita')}</span><span class="vc-testo"><span class="hud-lbl">${cfg.agg ? 'Preparata dall\'insegnante' : 'Fisica + politica'} · ${n} domande</span>
-      <b>${cfg.titolo || 'Simulazione della verifica'}</b><span class="d">${verFrasi(cfg)}. Come in classe: correzione e voto arrivano solo alla fine.</span></span>
-      <span class="vc-piede"><span class="rec ${rec === null ? 'nuova' : ''}">${rec === null ? 'MAI FATTA' : 'MIGLIOR VOTO ' + votoTxt(votoDa(rec / 100))}</span><span class="gioca">Inizia ${PLAY}</span></span>`;
-    b.onclick = () => avviaVerifica();
-    const m = document.createElement('button'); m.className = 'btn-testo vc-modifica'; m.innerHTML = `${icona('matita')}Sei l'insegnante? Prepara la verifica`;
-    m.onclick = () => apriPrepara();
-    VB.append(b, m);
+  {
+    const std = verNormalizza(verDefault()), rec = mp.get(SZ.rec + 'verifica', null), b = document.createElement('section'); b.className = 'verifica-card codice'; b.setAttribute('aria-labelledby', 'tVerCod');
+    b.innerHTML = `<span class="ico">${icona('matita')}</span><div class="vc-testo"><span class="hud-lbl">Verifica dell'insegnante · ${SZ.nome}</span>
+      <b id="tVerCod">Hai il codice della verifica?</b><span class="d">Scrivilo qui: fai la verifica preparata dal tuo insegnante. Come in classe, correzione e voto arrivano solo alla fine.</span>
+      <form class="vc-form" id="formCodice"><input id="codVer" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Es. K7M2Q" value="${mem.get('verCod', '')}" aria-label="Codice della verifica"><button class="primario piccolo" type="submit">Inizia ${PLAY}</button></form>
+      <p class="nota vc-esito" id="esitoCod" role="status"></p>
+      <div class="vc-link"><button type="button" class="btn-testo" id="verStd">${icona('mirino')}Allenati con la simulazione standard (${verTot(std)} domande${rec === null ? '' : ' · miglior voto ' + votoTxt(votoDa(rec / 100))})</button>
+      <button type="button" class="btn-testo" id="verInse">${icona('matita')}Sei l'insegnante? Prepara la verifica</button></div></div>`;
+    VB.appendChild(b);
+    $('formCodice').onsubmit = async e => { e.preventDefault(); const btn = e.target.querySelector('button'); btn.disabled = true; await cercaVerifica($('codVer').value); btn.disabled = false; };
+    $('verStd').onclick = () => avviaVerifica();
+    $('verInse').onclick = () => apriPrepara();
   }
   const G = $('giochi'); G.innerHTML = '';
   giochiHome().filter(g => g.id !== 'studio').forEach(g => {
@@ -1181,54 +1184,74 @@ function avviaElementi(soloIds) {
   prox();
 }
 
-// ---------- simulazione della verifica (solo Europa) ----------
+// ---------- simulazione della verifica (Europa e Mondo) ----------
 // Come in classe: niente aiuti né correzioni durante la prova; alla fine il voto in decimi e la correzione domanda per domanda.
-// L'insegnante la prepara dal sito («Prepara la verifica»): la configurazione è salvata online (api/verifica.js) e vale per tutti.
+// Ogni insegnante prepara la propria verifica dal sito («Prepara la verifica»): è salvata online (api/verifica.js) con un codice, e gli studenti la aprono scrivendo il codice.
 const VER_TIPI = [
   { id: 'fisica', fis: true, nome: 'Riconosci l\'elemento fisico', breve: 'Riconosci', frase: n => `${n} ${n === 1 ? 'elemento fisico' : 'elementi fisici'} da riconoscere` },
   { id: 'trovaFis', fis: true, nome: 'Trova l\'elemento fisico sulla carta', breve: 'Trova elemento', frase: n => `${n} ${n === 1 ? 'elemento fisico' : 'elementi fisici'} da trovare sulla carta` },
   { id: 'trova', nome: 'Trova lo Stato sulla carta', breve: 'Trova Stato', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da trovare sulla carta` },
   { id: 'indovina', nome: 'Riconosci lo Stato evidenziato', breve: 'Che Stato è', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da riconoscere` },
   { id: 'capitali', nome: 'Scegli la capitale', breve: 'Capitali', frase: n => `${n} ${n === 1 ? 'capitale' : 'capitali'}` },
-  { id: 'ue', nome: 'È nell\'Unione europea?', breve: 'UE', frase: n => `${n} ${n === 1 ? 'domanda' : 'domande'} sull'Unione europea` },
+  { id: 'ue', sez: 'europa', nome: 'È nell\'Unione europea?', breve: 'UE', frase: n => `${n} ${n === 1 ? 'domanda' : 'domande'} sull'Unione europea` },
+  { id: 'continente', sez: 'mondo', nome: 'In quale continente si trova?', breve: 'Continenti', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da collocare in un continente` },
 ];
+const verTipi = () => VER_TIPI.filter(t => !t.sez || t.sez === SZ.id);
 const VER_EXTRA = ['NOR', 'ISL', 'GBR', 'UKR'];
-// verifica predefinita (finché l'insegnante non ne salva una): fisica del livello Facile, Stati UE (senza Malta) + Norvegia, Islanda, Regno Unito, Ucraina
-const verDefault = () => ({ v: 1, titolo: '', parti: { fisica: 13, trovaFis: 0, trova: 7, indovina: 0, capitali: 0, ue: 5 },
-  stati: window.PAESI.filter(p => (p.ue || VER_EXTRA.includes(p.id)) && p.id !== 'MLT').map(p => p.id),
-  fisici: window.FISICO.filter(f => f.liv === 1).map(f => f.id), agg: 0 });
-// la predefinita si calcola al momento: i livelli degli elementi fisici vengono da contenuti.js, applicato in impostaSezione()
-let verCfg = mem.get('verCfg', null);
-const cfgAttuale = () => verCfg || verDefault();
+// verifica predefinita (per allenarsi senza codice): Europa = fisica del livello Facile, Stati UE (senza Malta) + Norvegia, Islanda, Regno Unito, Ucraina;
+// Mondo = elementi fisici e Stati del livello Facile. I livelli degli elementi fisici si leggono al momento: vengono dai dati della sezione, applicati in impostaSezione()
+const verDefault = () => SZ.id === 'mondo'
+  ? { v: 2, sez: 'mondo', titolo: '', parti: { fisica: 8, trovaFis: 0, trova: 6, indovina: 0, capitali: 0, continente: 4 },
+    stati: P.filter(p => p.liv === 1 && !MICRO.includes(p.id)).map(p => p.id), fisici: F.filter(f => f.liv === 1).map(f => f.id), agg: 0 }
+  : { v: 2, sez: 'europa', titolo: '', parti: { fisica: 13, trovaFis: 0, trova: 7, indovina: 0, capitali: 0, ue: 5 },
+    stati: P.filter(p => (p.ue || VER_EXTRA.includes(p.id)) && p.id !== 'MLT').map(p => p.id), fisici: F.filter(f => f.liv === 1).map(f => f.id), agg: 0 };
 const VER_API = 'api/verifica';
-// scarica la verifica dell'insegnante (con un tempo massimo, così senza rete si usa l'ultima scaricata)
-async function caricaVerifica(ms = 4000) {
+const pulisciCodice = c => String(c || '').trim().toUpperCase().replace(/\s+/g, '');
+const codiceValido = c => /^[A-Z0-9-]{3,20}$/.test(c);
+// scarica la verifica con questo codice (con un tempo massimo)
+async function caricaVerifica(codice, ms = 6000) {
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
   try {
-    const r = await fetch(VER_API, { cache: 'no-store', signal: ctl.signal });
-    if (r.ok) { const j = await r.json(); verCfg = j.config || null; mem.set('verCfg', verCfg); }
-  } catch {} finally { clearTimeout(t); }
-  return cfgAttuale();
+    const r = await fetch(`${VER_API}?codice=${encodeURIComponent(codice)}`, { cache: 'no-store', signal: ctl.signal });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.config) return { ok: true, codice: j.codice, config: j.config };
+    return { ok: false, errore: r.status === 404 ? 'Non trovo nessuna verifica con questo codice: controlla di averlo scritto bene.'
+      : r.status === 503 ? 'Le verifiche online non sono ancora attive (database non collegato su Vercel).' : 'Non riesco a caricare la verifica. Riprova.' };
+  } catch { return { ok: false, errore: 'Non riesco a raggiungere il server: controlla la connessione e riprova.' }; } finally { clearTimeout(t); }
 }
+// apre la verifica con questo codice, cambiando sezione se serve; scrive l'esito nella scheda della home
+async function cercaVerifica(codice) {
+  codice = pulisciCodice(codice);
+  const esito = $('esitoCod'), dica = t => { if (esito) esito.textContent = t; };
+  if (!codiceValido(codice)) return dica('Scrivi il codice che ti ha dato l\'insegnante.');
+  dica('Cerco la verifica…');
+  const r = await caricaVerifica(codice);
+  if (!r.ok) return dica(r.errore);
+  try { if (r.config.sez !== SZ.id) await impostaSezione(r.config.sez); } catch { return dica('Non riesco a caricare la sezione di questa verifica. Controlla la connessione e riprova.'); }
+  mem.set('verCod', r.codice); dica('');
+  avviaVerifica(r.config, { codice: r.codice });
+}
+// Stati giusti per una domanda sul continente (quelli a cavallo tra due continenti ne hanno due)
+const contGiusti = id => [...new Set([per[id].area, ...(per[id].alt || [])])];
 // solo id che esistono ancora nei dati, e numeri di domande che ci stanno
 function verNormalizza(c) {
   const stati = (c.stati || []).filter(id => per[id]), fisici = (c.fisici || []).filter(id => fis[id]), parti = {};
-  VER_TIPI.forEach(t => { parti[t.id] = Math.min(Math.max(0, +c.parti[t.id] || 0), t.fis ? fisici.length : stati.length); });
+  verTipi().forEach(t => { parti[t.id] = Math.min(Math.max(0, +c.parti[t.id] || 0), t.fis ? fisici.length : stati.length); });
   if (parti.ue) parti.ue = Math.min(parti.ue, stati.length);
   return { ...c, stati, fisici, parti };
 }
 const verTot = c => VER_TIPI.reduce((s, t) => s + (c.parti[t.id] || 0), 0);
-const verFrasi = c => { const l = VER_TIPI.filter(t => c.parti[t.id]).map(t => t.frase(c.parti[t.id])); return l.length > 1 ? l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1] : l[0] || ''; };
+const verFrasi = c => { const l = verTipi().filter(t => c.parti[t.id]).map(t => t.frase(c.parti[t.id])); return l.length > 1 ? l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1] : l[0] || ''; };
 const votoDa = frazione => Math.max(4, Math.round(frazione * 20) / 2);   // a mezzi voti, 4 è il voto più basso
 const votoTxt = v => Number.isInteger(v) ? String(v) : `${Math.floor(v)}½`;
 const giudizio = v => v >= 9.5 ? 'Ottimo' : v >= 8.5 ? 'Distinto' : v >= 7.5 ? 'Buono' : v >= 6 ? 'Sufficiente' : 'Non sufficiente';
 // n elementi a caso da lista, evitando quando possibile quelli già usati in altre parti
 const prendi = (lista, n, usati) => { const l = [...mescola(lista.filter(x => !usati.has(x))), ...mescola(lista.filter(x => usati.has(x)))].slice(0, n); l.forEach(x => usati.add(x)); return l; };
 
-// prova: configurazione da usare senza salvarla (anteprima dell'insegnante)
-async function avviaVerifica(prova) {
-  if (!prova) { const c = $('verificaBox').querySelector('.verifica-card'); if (c) c.classList.add('carico'); await caricaVerifica(); if (c) c.classList.remove('carico'); }
-  const cfg = verNormalizza(prova || cfgAttuale());
+// opz.prova: anteprima dell'insegnante (non conta per record, esperienza e medaglie); opz.codice: codice della verifica, per tenere separato il miglior voto
+function avviaVerifica(cfgIn, opz = {}) {
+  const prova = !!opz.prova;
+  const cfg = verNormalizza(cfgIn || verDefault());
   if (!verTot(cfg)) return alert('Questa verifica non ha domande.');
   suonoSerie(); clearInterval(timer);
   const P_ = cfg.parti, usatiS = new Set(), usatiF = new Set(), coda = [];
@@ -1244,11 +1267,12 @@ async function avviaVerifica(prova) {
     const scelti = [...prendi(fuori, nFuori, usatiS), ...prendi(dentro, P_.ue - nFuori, usatiS)];
     aggiungi('ue', mescola(scelti.length < P_.ue ? [...scelti, ...prendi(fuori.filter(x => !scelti.includes(x)), P_.ue - scelti.length, usatiS)] : scelti));
   }
+  if (P_.continente) aggiungi('continente', prendi(cfg.stati, P_.continente, usatiS));
   modoAttivo = 'stati';
   S = { gioco: 'verifica', modo: 'verifica', cats: [], liv: 1, pool: [], cfg, i: 0, punti: 0, errori: [], t0: Date.now(), blocca: false, tent: 0, serie: 0, serieMax: 0, xp: 0, esiti: [],
-    verifica: true, prova: !!prova, coda, risposte: [], mappa: null,
+    verifica: true, prova, codice: opz.codice || null, coda, risposte: [], mappa: null,
     clicStati: P.filter(p => !MICRO.includes(p.id) || cfg.stati.includes(p.id)).map(p => p.id) };
-  $('hudNome').textContent = prova ? 'Anteprima della verifica' : 'Simulazione della verifica';
+  $('hudNome').textContent = prova ? 'Anteprima della verifica' : (cfg.titolo || 'Simulazione della verifica');
   $('hudSub').textContent = `${SZ.nome} · ${coda.length} domande`;
   $('hudPods').hidden = false; $('stat').textContent = '';
   vistaIntera(); sulClic = null; etichetteOn = false;
@@ -1275,7 +1299,7 @@ function domandaVerifica() {
   conferma.onclick = () => {
     if (scelta === null || S.blocca) return;
     S.blocca = true; S.risposte[S.i] = scelta;
-    S.esiti[S.i] = tipo === 'ue' ? scelta === per[id].ue : scelta === id;
+    S.esiti[S.i] = tipo === 'ue' ? scelta === per[id].ue : tipo === 'continente' ? contGiusti(id).includes(scelta) : scelta === id;
     S.i++; domandaVerifica();
   };
   const scegliUna = opz => {
@@ -1330,6 +1354,11 @@ function domandaVerifica() {
     mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
     $('domanda').innerHTML = `${parte}<b>${nome(id)}</b> (evidenziato): qual è la capitale?`;
     scegliUna(mescola([per[id], ...mescola(vicini()).slice(0, 3)]).map(o => ({ testo: o.cap, v: o.id })));
+  } else if (tipo === 'continente') {
+    mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
+    $('domanda').innerHTML = `${parte}<b>${nome(id)}</b> (evidenziato): in quale continente si trova?`;
+    const giusti = contGiusti(id), altri = mescola(SZ.aree.filter(c => !giusti.includes(c))).slice(0, Math.max(2, 4 - giusti.length));
+    scegliUna(mescola([...giusti, ...altri]).map(c => ({ testo: c, v: c })));
   } else {
     mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
     $('domanda').innerHTML = `${parte}<b>${nome(id)}</b> (evidenziato) fa parte dell'Unione europea?`;
@@ -1342,7 +1371,7 @@ function finisciVerifica() {
   const righe = S.coda.map((q, k) => ({ ...q, r: S.risposte[k], ok: S.esiti[k] }));
   const tot = righe.length, punti = righe.filter(q => q.ok).length, perc = Math.round(100 * punti / tot);
   const voto = votoDa(punti / tot), sec = Math.floor((Date.now() - S.t0) / 1000);
-  const chiaveTipo = { trova: '', fisica: '', trovaFis: '', indovina: '', capitali: '|cap', ue: '|ue' };
+  const chiaveTipo = { trova: '', fisica: '', trovaFis: '', indovina: '', capitali: '|cap', ue: '|ue', continente: '|area' };
   let serie = 0;
   righe.forEach(q => {
     const ch = q.id + chiaveTipo[q.tipo];
@@ -1353,7 +1382,7 @@ function finisciVerifica() {
   // l'anteprima dell'insegnante non conta per record, esperienza e medaglie
   let ld = null, salito = false, guadagno = 0, nuove = [], rec = null, nuovoRec = false;
   if (!S.prova) {
-    const chiave = SZ.rec + 'verifica'; rec = mp.get(chiave, null); nuovoRec = rec === null || perc > rec;
+    const chiave = SZ.rec + 'verifica' + (S.codice ? '_' + S.codice : ''); rec = mp.get(chiave, null); nuovoRec = rec === null || perc > rec;
     if (nuovoRec) mp.set(chiave, perc);
     const sess = mp.get(kSess(), []);
     sess.push({ t: Date.now(), g: 'verifica', m: 'verifica', l: 1, c: [], p: perc, n: tot, s: sec });
@@ -1363,19 +1392,19 @@ function finisciVerifica() {
     ld = infoLiv(xpDopo); salito = ld.n > infoLiv(xpPrima).n;
     nuove = controllaMedaglie({ perc, stelle: stelleDa(perc), tot, xp: xpDopo });
   }
-  const parti = VER_TIPI.filter(t => righe.some(q => q.tipo === t.id)).map(t => {
+  const parti = verTipi().filter(t => righe.some(q => q.tipo === t.id)).map(t => {
     const q = righe.filter(x => x.tipo === t.id), g = q.filter(x => x.ok).length;
     return `<div><span class="hud-lbl">${t.breve}</span><b>${g}<span class="su">/${q.length}</span></b></div>`;
   }).join('');
   const testoDom = q => ({ fisica: () => cat(fis[q.id].cat).q, trovaFis: () => `Trova: <b>${nome(q.id)}</b>`, trova: () => `Trova: <b>${nome(q.id)}</b>`,
-    indovina: () => 'Quale Stato è evidenziato?', capitali: () => `<b>${nome(q.id)}</b>: qual è la capitale?`, ue: () => `<b>${nome(q.id)}</b> è nell'UE?` })[q.tipo]();
-  const giusta = q => q.tipo === 'capitali' ? per[q.id].cap : q.tipo === 'ue' ? (per[q.id].ue ? 'Sì' : 'No') : nome(q.id);
-  const tua = q => q.tipo === 'capitali' ? per[q.r].cap : q.tipo === 'ue' ? (q.r ? 'Sì' : 'No') : per[q.r] ? per[q.r].nome : fis[q.r] ? fis[q.r].nome : q.r;
+    indovina: () => 'Quale Stato è evidenziato?', capitali: () => `<b>${nome(q.id)}</b>: qual è la capitale?`, continente: () => `<b>${nome(q.id)}</b>: in quale continente si trova?`, ue: () => `<b>${nome(q.id)}</b> è nell'UE?` })[q.tipo]();
+  const giusta = q => q.tipo === 'continente' ? contGiusti(q.id).join(' / ') : q.tipo === 'capitali' ? per[q.id].cap : q.tipo === 'ue' ? (per[q.id].ue ? 'Sì' : 'No') : nome(q.id);
+  const tua = q => q.tipo === 'continente' ? q.r : q.tipo === 'capitali' ? per[q.r].cap : q.tipo === 'ue' ? (q.r ? 'Sì' : 'No') : per[q.r] ? per[q.r].nome : fis[q.r] ? fis[q.r].nome : q.r;
   const correzione = righe.map((q, k) => `<li class="${q.ok ? 'ok' : 'ko'}"><span class="n">${k + 1}</span><span class="cr-testo">${testoDom(q)}
     <small>${q.ok ? `Risposta: ${giusta(q)}` : `Hai risposto: ${tua(q)} · Giusta: <b>${giusta(q)}</b>`}</small></span></li>`).join('');
   const errStati = [...new Set(righe.filter(q => !q.ok && !fis[q.id]).map(q => q.id))], errFis = [...new Set(righe.filter(q => !q.ok && fis[q.id]).map(q => q.id))];
   const mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
-  const prova = S.prova, cfgProva = S.cfg;
+  const prova = S.prova, cfgProva = S.cfg, codiceV = S.codice;
   $('fine').innerHTML = `<div class="fine-griglia">
     <section class="fine-esito" aria-labelledby="titoloFine">
       <span class="hud-lbl">${prova ? 'Anteprima della verifica' : (S.cfg.titolo || 'Simulazione della verifica')} · ${SZ.nome}</span>
@@ -1400,7 +1429,7 @@ function finisciVerifica() {
         <ol class="correzione">${correzione}</ol>
       </section>
       <div class="azioni-fine">
-        <button class="primario" id="ancora">${icona('ricarica')}${prova ? 'Rifai l\'anteprima' : 'Nuova verifica'}</button>
+        <button class="primario" id="ancora">${icona('ricarica')}${prova ? 'Rifai l\'anteprima' : 'Rifai la verifica'}</button>
         ${prova ? '<button class="secondario" id="tornaPrepara">Torna a «Prepara la verifica»</button>' : ''}
         ${!prova && errStati.length ? '<button class="secondario rosso" id="ripStati">Ripassa gli Stati sbagliati</button>' : ''}
         ${!prova && errFis.length ? '<button class="secondario rosso" id="ripFis">Ripassa gli elementi sbagliati</button>' : ''}
@@ -1408,7 +1437,7 @@ function finisciVerifica() {
       </div>
     </div></div>`;
   mostra('fine'); suono('fine', perc); aggiornaProfilo();
-  $('ancora').onclick = () => avviaVerifica(prova ? cfgProva : undefined);
+  $('ancora').onclick = () => avviaVerifica(cfgProva, { prova, codice: codiceV });
   if ($('tornaPrepara')) $('tornaPrepara').onclick = () => apriPrepara(true);
   if ($('ripStati')) $('ripStati').onclick = () => { modo = 'stati'; mem.set('modo', modo); avvia('trova', errStati); };
   if ($('ripFis')) $('ripFis').onclick = () => { modo = 'fisico'; mem.set('modo', modo); avvia('indovina', errFis); };
@@ -1417,44 +1446,90 @@ function finisciVerifica() {
 }
 
 // ---------- prepara la verifica (insegnante) ----------
-// La password resta solo in memoria finché la pagina è aperta; il server la controlla a ogni salvataggio.
-let verPass = null, bozza = null;
+// Le password restano solo in memoria finché la pagina è aperta; il server le controlla a ogni salvataggio.
+// verSess: null = schermata di accesso; altrimenti { nuova, sez, passDocenti (solo se nuova), codice, password } della verifica che si sta preparando.
+let verSess = null, bozza = null, bozzaCod = { scelta: 'auto', codice: '', password: '' };
 const copiaCfg = c => JSON.parse(JSON.stringify(c));
 function apriPrepara(riprendi) {
-  if (!riprendi || !bozza) bozza = copiaCfg(cfgAttuale());
+  if (!riprendi || !verSess) { verSess = null; bozza = null; bozzaCod = { scelta: 'auto', codice: '', password: '' }; }
   mostra('prepara'); disegnaPrepara();
-  if (!riprendi) caricaVerifica().then(() => { if (!$('prepara').hidden && !verPass) { bozza = copiaCfg(cfgAttuale()); disegnaPrepara(); } });
 }
-function disegnaPrepara(avvisoHtml) {
+const linkVerifica = codice => `${location.origin}${location.pathname}?v=${encodeURIComponent(codice)}`;
+async function copiaTesto(testo, campo) {
+  try { await navigator.clipboard.writeText(testo); return true; } catch {}
+  try { campo.focus(); campo.select(); return document.execCommand('copy'); } catch { return false; }
+}
+function disegnaPrepara(avvisoHtml, mostraCodice) {
   const box = $('prepara');
-  if (!verPass) {
+  if (!verSess) {
+    let sezNuova = SZ.id;
     box.innerHTML = `<div class="prog-barra"><button class="btn-testo" id="prepIndietro">${icona('freccia')}Menu</button></div>
-      <section class="riquadro prep-accesso" aria-labelledby="tPrep">
-        <h1 id="tPrep">Prepara la verifica</h1>
-        <p class="nota">Questa pagina è per l'insegnante: scegli quante domande fare, su quali Stati e su quali elementi fisici. Quando salvi, la verifica cambia per tutti gli studenti.</p>
-        <form class="nuovo-profilo" id="formPass">
-          <input id="passInse" type="password" autocomplete="current-password" placeholder="Password insegnante" aria-label="Password insegnante">
-          <button class="primario piccolo" type="submit">Entra</button>
-        </form>
-        <p class="nota" id="esitoPass" role="status">${avvisoHtml || ''}</p>
-      </section>`;
+      <h1 id="tPrep">Prepara la verifica</h1>
+      <p class="nota">Pagina per gli insegnanti. Ogni verifica ha un proprio <b>codice</b>: gli studenti lo scrivono nella home e fanno la tua verifica, senza toccare quelle dei colleghi.</p>
+      <div class="prep-griglia">
+        <section class="riquadro" aria-labelledby="tNuova">
+          <h2 id="tNuova">Nuova verifica</h2>
+          <form class="prep-form" id="formNuova">
+            <span class="hud-lbl">Di quale sezione?</span>
+            <div class="seg" role="group" aria-label="Sezione della verifica">${['europa', 'mondo'].map(id => `<button type="button" data-sezn="${id}" aria-pressed="${id === sezNuova}">${SEZIONI[id].nome} · ${SEZIONI[id].classe.toLowerCase()}</button>`).join('')}</div>
+            <label><span class="hud-lbl">Password degli insegnanti</span><input id="passDocenti" type="password" autocomplete="current-password" aria-label="Password degli insegnanti"></label>
+            <button class="primario" type="submit">Continua</button>
+            <p class="nota" id="esitoNuova" role="status"></p>
+          </form>
+        </section>
+        <section class="riquadro" aria-labelledby="tModifica">
+          <h2 id="tModifica">Modifica una tua verifica</h2>
+          <form class="prep-form" id="formModifica">
+            <label><span class="hud-lbl">Codice della verifica</span><input id="modCodice" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false" value="${mem.get('verCod', '')}" aria-label="Codice della verifica"></label>
+            <label><span class="hud-lbl">Password di questa verifica</span><input id="modPass" type="password" autocomplete="off" aria-label="Password della verifica"></label>
+            <button class="primario" type="submit">Apri</button>
+            <p class="nota" id="esitoModifica" role="status">${avvisoHtml || ''}</p>
+          </form>
+        </section>
+      </div>`;
     $('prepIndietro').onclick = esciMenu;
-    $('formPass').onsubmit = async e => {
+    box.querySelectorAll('[data-sezn]').forEach(b => b.onclick = () => { sezNuova = b.dataset.sezn; box.querySelectorAll('[data-sezn]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+    $('formNuova').onsubmit = async e => {
       e.preventDefault();
-      const p = $('passInse').value; if (!p) return;
-      $('esitoPass').textContent = 'Controllo…';
-      const r = await salvaVerifica({ password: p, prova: true });
-      if (r.ok) { verPass = p; disegnaPrepara(); } else $('esitoPass').textContent = r.errore;
+      const p = $('passDocenti').value; if (!p) return;
+      $('esitoNuova').textContent = 'Controllo…';
+      const r = await chiamaVerifica({ azione: 'prova', passwordDocenti: p });
+      if (!r.ok) return ($('esitoNuova').textContent = r.errore);
+      try { if (sezNuova !== SZ.id) { $('esitoNuova').textContent = 'Carico la sezione…'; await impostaSezione(sezNuova); } } catch { return ($('esitoNuova').textContent = 'Non riesco a caricare questa sezione. Riprova.'); }
+      bozza = verDefault(); bozzaCod = { scelta: 'auto', codice: '', password: '' };
+      verSess = { nuova: true, sez: sezNuova, passDocenti: p, codice: null, password: null }; disegnaPrepara();
     };
-    $('passInse').focus();
+    $('formModifica').onsubmit = async e => {
+      e.preventDefault();
+      const codice = pulisciCodice($('modCodice').value), password = $('modPass').value;
+      if (!codiceValido(codice) || !password) return ($('esitoModifica').textContent = 'Scrivi il codice e la password della verifica.');
+      $('esitoModifica').textContent = 'Controllo…';
+      const r = await chiamaVerifica({ azione: 'accedi', codice, password });
+      if (!r.ok) return ($('esitoModifica').textContent = r.errore);
+      try { if (r.config.sez !== SZ.id) { $('esitoModifica').textContent = 'Carico la sezione…'; await impostaSezione(r.config.sez); } } catch { return ($('esitoModifica').textContent = 'Non riesco a caricare la sezione di questa verifica. Riprova.'); }
+      mem.set('verCod', r.codice); bozza = copiaCfg(r.config);
+      verSess = { nuova: false, sez: r.config.sez, passDocenti: null, codice: r.codice, password }; disegnaPrepara();
+    };
+    $('passDocenti').focus();
     return;
   }
-  const c = bozza, nS = c.stati.length, nF = c.fisici.length, tot = verTot(verNormalizza(c));
+  const c = bozza, nS = c.stati.length, nF = c.fisici.length, tot = verTot(verNormalizza(c)), mondo = SZ.id === 'mondo', nuova = verSess.nuova;
   const max = t => t.fis ? nF : nS;
-  const tipiHtml = VER_TIPI.map(t => `<label class="prep-tipo"><span><b>${t.nome}</b><small>${t.fis ? 'Geografia fisica' : 'Geografia politica'} · massimo ${max(t)}</small></span>
+  const tipiHtml = verTipi().map(t => `<label class="prep-tipo"><span><b>${t.nome}</b><small>${t.fis ? 'Geografia fisica' : 'Geografia politica'} · massimo ${max(t)}</small></span>
     <input type="number" min="0" max="${max(t)}" step="1" inputmode="numeric" data-tipo="${t.id}" value="${c.parti[t.id] || 0}" aria-label="${t.nome}: numero di domande"></label>`).join('');
   const statiOrd = P.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'it'));
-  const chipStato = p => `<button class="chip piccolo" data-stato="${p.id}" aria-pressed="${c.stati.includes(p.id)}">${p.nome}${p.ue ? '<span class="n">UE</span>' : ''}</button>`;
+  const chipStato = p => `<button class="chip piccolo" data-stato="${p.id}" aria-pressed="${c.stati.includes(p.id)}">${p.nome}${p.ue ? '<span class="n">UE</span>' : mondo ? `<span class="n">${'●'.repeat(p.liv)}</span>` : ''}</button>`;
+  const statiHtml = mondo
+    ? SZ.aree.map(k => {
+      const el = statiOrd.filter(p => p.area === k), n = el.filter(p => c.stati.includes(p.id)).length;
+      return `<details class="prep-cat"><summary><b>${k}</b><span class="hud-lbl">${n} / ${el.length}</span></summary>
+        <div class="chips">${el.map(chipStato).join('')}</div>
+        <div class="azioni-riga"><button class="btn-testo" data-contTutti="${k}">Tutti</button><button class="btn-testo" data-contNessuno="${k}">Nessuno</button></div></details>`;
+    }).join('')
+    : `<div class="chips">${statiOrd.map(chipStato).join('')}</div>`;
+  const rapidiStati = mondo
+    ? '<button class="secondario piccolo" data-sliv="1">Livello Facile</button><button class="secondario piccolo" data-sliv="2">Facile + Medio</button><button class="secondario piccolo" data-sliv="3">Tutti</button><button class="secondario piccolo" data-sliv="0">Nessuno</button>'
+    : '<button class="secondario piccolo" id="sDef">UE + Norvegia, Islanda, Regno Unito, Ucraina</button><button class="secondario piccolo" id="sUE">Solo UE</button><button class="secondario piccolo" id="sTutti">Tutti</button><button class="secondario piccolo" id="sNessuno">Nessuno</button>';
   const fisHtml = catsSez().map(k => {
     const el = F.filter(f => f.cat === k.id).sort((a, b) => a.liv - b.liv || a.nome.localeCompare(b.nome, 'it'));
     const n = el.filter(f => c.fisici.includes(f.id)).length;
@@ -1462,11 +1537,30 @@ function disegnaPrepara(avvisoHtml) {
       <div class="chips">${el.map(f => `<button class="chip piccolo" data-fis="${f.id}" aria-pressed="${c.fisici.includes(f.id)}">${f.nome}<span class="n">${'●'.repeat(f.liv)}</span></button>`).join('')}</div>
       <div class="azioni-riga"><button class="btn-testo" data-catTutti="${k.id}">Tutti</button><button class="btn-testo" data-catNessuno="${k.id}">Nessuno</button></div></details>`;
   }).join('');
-  const agg = verCfg && verCfg.agg ? new Date(verCfg.agg).toLocaleString('it-IT', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
+  const agg = c.agg ? new Date(c.agg).toLocaleString('it-IT', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
+  const codiceHtml = !nuova ? '' : `<section class="riquadro prep-largo" aria-labelledby="tCod">
+        <div class="riq-testa"><h2 id="tCod">Codice e password</h2></div>
+        <div class="prep-codici">
+          <div><span class="hud-lbl">Codice della verifica</span>
+            <div class="seg" role="group" aria-label="Come scegliere il codice"><button type="button" data-scelta="auto" aria-pressed="${bozzaCod.scelta === 'auto'}">Lo sceglie il sito</button><button type="button" data-scelta="mio" aria-pressed="${bozzaCod.scelta === 'mio'}">Lo scelgo io</button></div>
+            ${bozzaCod.scelta === 'mio' ? `<input id="prepCodice" class="prep-input" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Es. 2B-GEO" value="${bozzaCod.codice.replace(/"/g, '&quot;')}" aria-label="Codice scelto da te">
+            <small class="nota">Da 3 a 20 tra lettere, numeri e trattini. Se esiste già te lo diciamo.</small>` : '<small class="nota">Un codice di 5 caratteri, facile da leggere e scrivere (per esempio K7M2Q).</small>'}</div>
+          <label><span class="hud-lbl">Password di questa verifica</span><input id="prepPass" class="prep-input" type="password" autocomplete="new-password" value="${bozzaCod.password.replace(/"/g, '&quot;')}" aria-label="Password di questa verifica">
+            <small class="nota">Almeno 4 caratteri. Serve solo a te per modificare la verifica: gli studenti usano solo il codice.</small></label>
+        </div>
+      </section>`;
+  const codiceSalvato = !mostraCodice || !verSess.codice ? '' : `<section class="riquadro prep-codice" aria-labelledby="tSalvata" role="status">
+      <span class="hud-lbl" id="tSalvata">Verifica salvata · ${SZ.nome}</span>
+      <div class="codice-grande" aria-label="Codice: ${verSess.codice.split('').join(' ')}">${verSess.codice}</div>
+      <p><b>Salvati questo codice per accedere in seguito alla verifica e modificarla</b>, insieme alla password della verifica. Gli studenti lo scrivono nella home del sito, oppure aprono questo link:</p>
+      <input class="prep-input" id="linkVer" type="text" readonly value="${linkVerifica(verSess.codice)}" aria-label="Link per gli studenti">
+      <div class="azioni-riga"><button class="secondario piccolo" id="copiaCodice">Copia il codice</button><button class="secondario piccolo" id="copiaLink">Copia il link</button></div>
+      <p class="nota" id="esitoCopia" role="status"></p></section>`;
   box.innerHTML = `<div class="prog-barra"><button class="btn-testo" id="prepIndietro">${icona('freccia')}Menu</button>
-      <span class="hud-lbl">${agg ? 'Verifica attuale salvata il ' + agg : 'Ora gli studenti fanno la verifica predefinita'}</span></div>
-    <h1>Prepara la verifica</h1>
-    <p class="nota">Le modifiche valgono per tutti gli studenti solo dopo «Salva per tutti». Con «Prova» la fai tu, senza salvarla.</p>
+      <span class="hud-lbl">${nuova ? 'Nuova verifica · ' + SZ.nome : `Verifica ${verSess.codice} · ${SZ.nome}${agg ? ' · salvata il ' + agg : ''}`}</span></div>
+    ${codiceSalvato}
+    <h1>${nuova ? 'Prepara la verifica' : 'Modifica la verifica'}</h1>
+    <p class="nota">${nuova ? 'Scegli quante domande fare, su quali Stati e su quali elementi fisici. Con «Prova» la fai tu, senza salvarla.' : 'Le modifiche valgono per gli studenti solo dopo «Salva le modifiche». Con «Prova» la fai tu, senza salvarla.'}</p>
     <div class="prep-griglia">
       <section class="riquadro" aria-labelledby="tTipi">
         <div class="riq-testa"><h2 id="tTipi">Domande</h2><span class="hud-lbl" id="prepTot">Totale ${tot}</span></div>
@@ -1475,12 +1569,9 @@ function disegnaPrepara(avvisoHtml) {
         <p class="nota">Metti 0 per togliere un tipo di domanda. Le domande di geografia fisica vengono prima, poi quelle di politica.</p>
       </section>
       <section class="riquadro" aria-labelledby="tStati">
-        <div class="riq-testa"><h2 id="tStati">Stati</h2><span class="hud-lbl">${nS} scelti</span></div>
-        <div class="azioni-riga prep-rapidi">
-          <button class="secondario piccolo" id="sDef">UE + Norvegia, Islanda, Regno Unito, Ucraina</button>
-          <button class="secondario piccolo" id="sUE">Solo UE</button><button class="secondario piccolo" id="sTutti">Tutti</button><button class="secondario piccolo" id="sNessuno">Nessuno</button>
-        </div>
-        <div class="chips">${statiOrd.map(chipStato).join('')}</div>
+        <div class="riq-testa"><h2 id="tStati">Stati</h2><span class="hud-lbl">${nS} scelti${mondo ? ' · ● facile ●● medio ●●● difficile' : ''}</span></div>
+        <div class="azioni-riga prep-rapidi">${rapidiStati}</div>
+        ${statiHtml}
       </section>
       <section class="riquadro prep-largo" aria-labelledby="tFis">
         <div class="riq-testa"><h2 id="tFis">Elementi fisici</h2><span class="hud-lbl">${nF} scelti · ● facile ●● medio ●●● difficile</span></div>
@@ -1490,13 +1581,14 @@ function disegnaPrepara(avvisoHtml) {
         </div>
         ${fisHtml}
       </section>
+      ${codiceHtml}
     </div>
     <div class="prep-barra">
       <p class="nota" id="prepEsito" role="status">${avvisoHtml || ''}</p>
       <div class="azioni-riga">
         <button class="secondario" id="prepDefault">Torna alla predefinita</button>
         <button class="secondario" id="prepProva">${icona('mirino')}Prova</button>
-        <button class="primario" id="prepSalva">Salva per tutti</button>
+        <button class="primario" id="prepSalva">${nuova ? 'Crea la verifica' : 'Salva le modifiche'}</button>
       </div>
     </div>`;
   // le categorie aperte restano aperte quando si ridisegna
@@ -1515,29 +1607,56 @@ function disegnaPrepara(avvisoHtml) {
   box.querySelectorAll('[data-fis]').forEach(b => b.onclick = () => { c.fisici = alterna(c.fisici, b.dataset.fis); ridisegna(); });
   box.querySelectorAll('[data-cattutti]').forEach(b => b.onclick = () => { c.fisici = [...new Set([...c.fisici, ...F.filter(f => f.cat === b.dataset.cattutti).map(f => f.id)])]; ridisegna(); });
   box.querySelectorAll('[data-catnessuno]').forEach(b => b.onclick = () => { c.fisici = c.fisici.filter(id => fis[id].cat !== b.dataset.catnessuno); ridisegna(); });
+  box.querySelectorAll('[data-conttutti]').forEach(b => b.onclick = () => { c.stati = [...new Set([...c.stati, ...P.filter(p => p.area === b.dataset.conttutti).map(p => p.id)])]; ridisegna(); });
+  box.querySelectorAll('[data-contnessuno]').forEach(b => b.onclick = () => { c.stati = c.stati.filter(id => per[id].area !== b.dataset.contnessuno); ridisegna(); });
+  box.querySelectorAll('[data-sliv]').forEach(b => b.onclick = () => { c.stati = P.filter(p => p.liv <= +b.dataset.sliv).map(p => p.id); ridisegna(); });
   box.querySelectorAll('[data-liv]').forEach(b => b.onclick = () => { c.fisici = F.filter(f => f.liv <= +b.dataset.liv).map(f => f.id); ridisegna(); });
-  $('sDef').onclick = () => { c.stati = verDefault().stati; ridisegna(); };
-  $('sUE').onclick = () => { c.stati = P.filter(p => p.ue).map(p => p.id); ridisegna(); };
-  $('sTutti').onclick = () => { c.stati = P.map(p => p.id); ridisegna(); };
-  $('sNessuno').onclick = () => { c.stati = []; ridisegna(); };
-  $('prepDefault').onclick = () => { bozza = verDefault(); ridisegna(); $('prepEsito').textContent = 'Ripristinata la verifica predefinita: premi «Salva per tutti» per renderla attiva.'; };
-  $('prepProva').onclick = () => { if (!verTot(verNormalizza(c))) return ($('prepEsito').textContent = 'Aggiungi almeno una domanda.'); avviaVerifica(copiaCfg(c)); };
+  if (!mondo) {
+    $('sDef').onclick = () => { c.stati = verDefault().stati; ridisegna(); };
+    $('sUE').onclick = () => { c.stati = P.filter(p => p.ue).map(p => p.id); ridisegna(); };
+    $('sTutti').onclick = () => { c.stati = P.map(p => p.id); ridisegna(); };
+    $('sNessuno').onclick = () => { c.stati = []; ridisegna(); };
+  }
+  if (nuova) {
+    box.querySelectorAll('[data-scelta]').forEach(b => b.onclick = () => { bozzaCod.scelta = b.dataset.scelta; ridisegna(); });
+    $('prepPass').oninput = e => { bozzaCod.password = e.target.value; };
+    if ($('prepCodice')) $('prepCodice').oninput = e => { bozzaCod.codice = e.target.value; };
+  }
+  if ($('copiaCodice')) {
+    const esito = ok => { $('esitoCopia').textContent = ok ? 'Copiato!' : 'Non riesco a copiare: selezionalo e copialo a mano.'; };
+    $('copiaCodice').onclick = async () => esito(await copiaTesto(verSess.codice, $('linkVer')));
+    $('copiaLink').onclick = async () => esito(await copiaTesto($('linkVer').value, $('linkVer')));
+    $('linkVer').onfocus = e => e.target.select();
+  }
+  $('prepDefault').onclick = () => { const { titolo } = bozza; bozza = { ...verDefault(), titolo }; ridisegna(); $('prepEsito').textContent = 'Ripristinata la verifica predefinita.'; };
+  $('prepProva').onclick = () => { if (!verTot(verNormalizza(c))) return ($('prepEsito').textContent = 'Aggiungi almeno una domanda.'); avviaVerifica(copiaCfg(c), { prova: true }); };
   $('prepSalva').onclick = async () => {
-    const cfg = verNormalizza(c);
-    if (!verTot(cfg)) return ($('prepEsito').textContent = 'Aggiungi almeno una domanda.');
-    $('prepSalva').disabled = true; $('prepEsito').textContent = 'Salvataggio…';
-    const r = await salvaVerifica({ password: verPass, config: { titolo: cfg.titolo, parti: cfg.parti, stati: cfg.stati, fisici: cfg.fisici } });
-    if (r.ok) { verCfg = r.config; mem.set('verCfg', r.config); bozza = copiaCfg(r.config); disegnaPrepara(`Salvata! Da ora tutti fanno questa verifica: ${verTot(verNormalizza(r.config))} domande.`); }
-    else if (r.stato === 401) { verPass = null; disegnaPrepara('Password non più valida: rientra.'); }
-    else { $('prepSalva').disabled = false; $('prepEsito').textContent = r.errore; }
+    const cfg = verNormalizza(c), esito = $('prepEsito');
+    if (!verTot(cfg)) return (esito.textContent = 'Aggiungi almeno una domanda.');
+    const config = { sez: verSess.sez, titolo: cfg.titolo, parti: cfg.parti, stati: cfg.stati, fisici: cfg.fisici };
+    let corpo;
+    if (nuova) {
+      const codice = bozzaCod.scelta === 'mio' ? pulisciCodice(bozzaCod.codice) : '';
+      if (bozzaCod.scelta === 'mio' && !codiceValido(codice)) return (esito.textContent = 'Il codice deve avere da 3 a 20 tra lettere, numeri e trattini.');
+      if (bozzaCod.password.length < 4) return (esito.textContent = 'Scegli una password per questa verifica (almeno 4 caratteri).');
+      corpo = { azione: 'crea', passwordDocenti: verSess.passDocenti, passwordVerifica: bozzaCod.password, codice, config };
+    } else corpo = { azione: 'salva', codice: verSess.codice, password: verSess.password, config };
+    $('prepSalva').disabled = true; esito.textContent = 'Salvataggio…';
+    const r = await chiamaVerifica(corpo);
+    if (r.ok) {
+      if (nuova) { verSess = { nuova: false, sez: verSess.sez, passDocenti: null, codice: r.codice, password: bozzaCod.password }; mem.set('verCod', r.codice); }
+      bozza = copiaCfg(r.config); disegnaPrepara(`Salvata: ${verTot(verNormalizza(r.config))} domande.`, true);
+      $('tSalvata').scrollIntoView({ block: 'center' });
+    } else if (r.stato === 401) { verSess = null; disegnaPrepara('Password non più valida: rientra.'); }
+    else { $('prepSalva').disabled = false; esito.textContent = r.errore; }
   };
 }
-async function salvaVerifica(corpo) {
+async function chiamaVerifica(corpo) {
   try {
     const r = await fetch(VER_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok) return { ok: true, config: j.config };
-    return { ok: false, stato: r.status, errore: r.status === 401 ? 'Password sbagliata.' : r.status === 503 ? 'Il salvataggio online non è ancora attivo (database non collegato su Vercel).' : (j.errore || 'Errore') + '. Riprova.' };
+    if (r.ok) return { ok: true, codice: j.codice, config: j.config };
+    return { ok: false, stato: r.status, errore: r.status === 503 ? 'Il salvataggio online non è ancora attivo (database non collegato su Vercel).' : j.errore ? j.errore + '.' : 'Errore. Riprova.' };
   } catch { return { ok: false, errore: 'Non riesco a raggiungere il server: controlla la connessione e riprova.' }; }
 }
 
@@ -1725,6 +1844,8 @@ function disegnaProgressi() {
 // avvio: si carica l'ultima sezione usata (Mondo solo se i suoi dati sono disponibili)
 impostaSezione(sezione).catch(() => impostaSezione('europa')).then(() => {
   disegnaHome();
-  caricaVerifica().then(() => { if (!$('home').hidden) disegnaHome(); });
+  // link per gli studenti (…/?v=CODICE): apre subito la verifica
+  const v = new URLSearchParams(location.search).get('v');
+  if (v) { history.replaceState(null, '', location.pathname); $('codVer').value = pulisciCodice(v); cercaVerifica(v); }
 });
 })();
