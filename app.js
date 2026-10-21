@@ -17,36 +17,63 @@ const CATS = [
   { id: 'laghi', nome: 'Laghi', sing: 'lago', ico: '💧', q: 'Quale lago è evidenziato?' },
   { id: 'deserti', nome: 'Deserti', sing: 'deserto', ico: '🏜️', q: 'Quale deserto è evidenziato?' },
 ];
+// nomi delle categorie diversi nella sezione Italia (dove ci sono golfi, arcipelaghi, promontori e massicci)
+const CATS_BASE = CATS.map(c => ({ ...c }));
+const CATS_ITALIA = {
+  mari: { nome: 'Mari e golfi', sing: 'mare o golfo', q: 'Quale mare (o golfo) è evidenziato?' },
+  monti: { nome: 'Monti', sing: 'catena o massiccio montuoso', q: 'Quale catena montuosa (o massiccio) è evidenziata?' },
+  isole: { nome: 'Isole e arcipelaghi', sing: 'isola o arcipelago', q: 'Quale isola (o arcipelago) è evidenziata?' },
+  penisole: { nome: 'Penisole e promontori', sing: 'penisola o promontorio', q: 'Quale penisola (o promontorio) è evidenziata?' },
+};
 const cat = id => CATS.find(c => c.id === id);
 const dato = id => per[id] || fis[id];
 const nome = id => dato(id).nome;
 const nomeStato = id => (per[id] ? per[id].nome : id);
+const ITA = () => SZ.id === 'italia';
+const citta = id => !!(per[id] && per[id].citta);
+// regioni e Stati (senza le città), per i giochi di geografia fisica che collegano elementi e territori
+const poolTerr = liv => pool(liv).filter(p => !p.citta);
 
 const LIVELLI = [
-  { n: 1, nome: 'Facile', desc: n => modo === 'fisico' ? `${n} elementi: quelli fondamentali del programma base.` : SZ.id === 'mondo' ? `${n} Stati: i più grandi e conosciuti di ogni continente.` : `${n} Stati: i principali, quelli grandi e più conosciuti.` },
-  { n: 2, nome: 'Medio', desc: n => modo === 'fisico' ? `${n} elementi: tutte le catene montuose e gli elementi più importanti.` : SZ.id === 'mondo' ? `${n} Stati: si aggiungono molti Stati di media grandezza.` : `${n} Stati: si aggiungono i Balcani, i Paesi baltici e altri Stati medio-piccoli.` },
-  { n: 3, nome: 'Difficile', desc: n => modo === 'fisico' ? `${n} elementi: anche i più piccoli, ognuno con una curiosità di attualità.` : SZ.id === 'mondo' ? `${n} Stati: tutti, compresi gli Stati insulari e i più piccoli.` : `${n} Stati: tutti, compresi Malta, Kosovo e i microstati.` },
+  { n: 1, nome: 'Facile', desc: n => modo === 'fisico' ? (ITA() ? `${n} elementi: quelli fondamentali del programma di prima media.` : `${n} elementi: quelli fondamentali del programma base.`) : ITA() ? `Le 20 regioni e i ${n - 20} capoluoghi di regione.` : SZ.id === 'mondo' ? `${n} Stati: i più grandi e conosciuti di ogni continente.` : `${n} Stati: i principali, quelli grandi e più conosciuti.` },
+  { n: 2, nome: 'Medio', desc: n => modo === 'fisico' ? (ITA() ? `${n} elementi: si aggiungono laghi, Dolomiti, arcipelaghi, affluenti del Po e altre vette.` : `${n} elementi: tutte le catene montuose e gli elementi più importanti.`) : ITA() ? `Le regioni e ${n - 20} capoluoghi: si aggiungono i capoluoghi di provincia più conosciuti.` : SZ.id === 'mondo' ? `${n} Stati: si aggiungono molti Stati di media grandezza.` : `${n} Stati: si aggiungono i Balcani, i Paesi baltici e altri Stati medio-piccoli.` },
+  { n: 3, nome: 'Difficile', desc: n => modo === 'fisico' ? (ITA() ? `${n} elementi: tutti, compresi golfi, isole minori e altri fiumi e massicci.` : `${n} elementi: anche i più piccoli, ognuno con una curiosità di attualità.`) : ITA() ? `Le regioni e tutti i ${n - 20} capoluoghi di provincia.` : SZ.id === 'mondo' ? `${n} Stati: tutti, compresi gli Stati insulari e i più piccoli.` : `${n} Stati: tutti, compresi Malta, Kosovo e i microstati.` },
 ];
-const TUTTE = ['europa', 'mondo'];
+const TUTTE = ['europa', 'mondo'], TRE = ['italia', 'europa', 'mondo'];
+// ent (solo Italia): 'reg' = gioco sulle regioni, 'citta' = gioco sui capoluoghi; base = gioco di cui si usano le domande
 const GIOCHI = [
   { id: 'studio', ico: '📖', ic: 'libro', nome: 'Studio', desc: 'Esplora la mappa: tocca uno Stato per aprire la sua carta d\'identità.', punti: false, modo: 'stati', sez: TUTTE },
+  { id: 'studio', ico: '📖', ic: 'libro', nome: 'Studio', desc: 'Esplora la mappa: tocca una regione o un capoluogo per aprire la sua scheda.', punti: false, modo: 'stati', sez: ['italia'] },
   { id: 'trova', ico: '🎯', ic: 'mirino', nome: 'Trova lo Stato', desc: 'Leggi il nome e cliccalo sulla mappa.', modo: 'stati', sez: TUTTE },
+  { id: 'trova', ico: '🎯', ic: 'mirino', nome: 'Trova la regione', desc: 'Leggi il nome di una regione e cliccala sulla mappa.', modo: 'stati', sez: ['italia'], ent: 'reg' },
+  { id: 'trovaCitta', base: 'trova', ico: '🎯', ic: 'mirino', nome: 'Trova la città', desc: 'Leggi il nome di un capoluogo e clicca il suo punto sulla mappa.', modo: 'stati', sez: ['italia'], ent: 'citta' },
   { id: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che Stato è?', desc: 'Uno Stato è evidenziato: scegli il nome giusto.', modo: 'stati', sez: TUTTE },
+  { id: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che regione è?', desc: 'Una regione è evidenziata: scegli il nome giusto.', modo: 'stati', sez: ['italia'], ent: 'reg' },
+  { id: 'indovinaCitta', base: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che città è?', desc: 'Un capoluogo è evidenziato sulla mappa: scegli il nome giusto.', modo: 'stati', sez: ['italia'], ent: 'citta' },
   { id: 'capitali', ico: '🏛️', ic: 'colonne', nome: 'Le capitali', desc: 'Uno Stato è evidenziato: scegli la sua capitale.', modo: 'stati', sez: TUTTE },
+  { id: 'capitali', ico: '🏛️', ic: 'colonne', nome: 'I capoluoghi di regione', desc: 'Una regione è evidenziata: scegli il suo capoluogo.', modo: 'stati', sez: ['italia'], ent: 'reg' },
+  { id: 'regioneDi', ico: '🧭', ic: 'globo', nome: 'In che regione si trova?', desc: 'Un capoluogo è evidenziato: scegli la regione in cui si trova.', modo: 'stati', sez: ['italia'], ent: 'citta' },
+  { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi l\'area', desc: 'Seleziona sulla mappa tutte le regioni dell\'Italia settentrionale, centrale o meridionale.', modo: 'stati', sez: ['italia'], ent: 'reg' },
+  { id: 'identita', ico: '🪪', ic: 'carta', nome: 'Carta d\'identità', desc: 'Area, abitanti, superficie: quanto conosci le regioni?', modo: 'stati', sez: ['italia'], ent: 'reg' },
   { id: 'continente', ico: '🧭', ic: 'globo', nome: 'In che continente?', desc: 'Uno Stato è evidenziato: scegli il continente in cui si trova.', modo: 'stati', sez: ['mondo'] },
   { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi il continente', desc: 'Seleziona sulla mappa tutti gli Stati di un continente.', modo: 'stati', sez: ['mondo'] },
   { id: 'ue', ico: '🇪🇺', ic: 'bandiera', nome: 'UE o non UE?', desc: 'Lo Stato evidenziato fa parte dell\'Unione europea?', modo: 'stati', sez: ['europa'] },
   { id: 'coloraUE', ico: '🟦', ic: 'griglia', nome: 'Componi l\'UE', desc: 'Seleziona sulla mappa tutti gli Stati membri dell\'Unione europea.', modo: 'stati', sez: ['europa'] },
   { id: 'risiko', ico: '⚔️', ic: 'bandiera', nome: 'Costruisci il tuo Stato', desc: 'Un Risiko con un obiettivo diverso: conquistare non basta, devi creare territorio, popolo e governo.', punti: false, modo: 'stati', sez: [] }, // nascosto (in lavorazione): per riattivarlo, sez: ['europa']
   { id: 'identita', ico: '🪪', ic: 'carta', nome: 'Carta d\'identità', desc: 'Moneta, lingua, posizione, abitanti, superficie: quanto conosci gli Stati?', modo: 'stati', sez: TUTTE },
-  { id: 'studio', ico: '📖', ic: 'libro', nome: 'Studio', desc: 'Esplora la mappa fisica: tocca un elemento per leggerne il nome e una curiosità.', punti: false, modo: 'fisico', sez: TUTTE },
-  { id: 'trova', ico: '🎯', ic: 'mirino', nome: 'Trova sulla mappa', desc: 'Leggi il nome (di un fiume, un monte, un mare…) e cliccalo sulla mappa.', modo: 'fisico', sez: TUTTE },
-  { id: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che cos\'è?', desc: 'Un elemento è evidenziato: scegli il nome giusto.', modo: 'fisico', sez: TUTTE },
+  { id: 'studio', ico: '📖', ic: 'libro', nome: 'Studio', desc: 'Esplora la mappa fisica: tocca un elemento per leggerne il nome e una curiosità.', punti: false, modo: 'fisico', sez: TRE },
+  { id: 'trova', ico: '🎯', ic: 'mirino', nome: 'Trova sulla mappa', desc: 'Leggi il nome (di un fiume, un monte, un mare…) e cliccalo sulla mappa.', modo: 'fisico', sez: TRE },
+  { id: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che cos\'è?', desc: 'Un elemento è evidenziato: scegli il nome giusto.', modo: 'fisico', sez: TRE },
   { id: 'legami', ico: '🔗', ic: 'link', nome: 'Stati collegati', desc: 'Leggi il nome di un mare, un fiume, un monte… e seleziona sulla mappa gli Stati che tocca. Senza aiuti: devi ricordarlo!', modo: 'fisico', sez: TUTTE },
+  { id: 'legami', ico: '🔗', ic: 'link', nome: 'Regioni collegate', desc: 'Leggi il nome di un fiume, un monte, un mare… e seleziona sulla mappa le regioni in cui si trova. Senza aiuti: devi ricordarlo!', modo: 'fisico', sez: ['italia'] },
   { id: 'verifica', ico: '📝', ic: 'matita', nome: 'Simulazione della verifica', desc: 'Geografia fisica e politica insieme, come in classe: il voto arriva alla fine.', modo: 'verifica', sez: ['europa'] },
   { id: 'elementi', ico: '🧩', ic: 'strati', nome: 'Cosa lo tocca?', desc: 'Uno Stato è evidenziato: scegli quali elementi fisici (fiumi, monti, mari…) si trovano lì.', modo: 'fisico', sez: TUTTE },
+  { id: 'elementi', ico: '🧩', ic: 'strati', nome: 'Cosa c\'è in questa regione?', desc: 'Una regione è evidenziata: scegli quali elementi fisici (fiumi, monti, mari…) si trovano lì.', modo: 'fisico', sez: ['italia'] },
 ];
-const TIPI = { cont: 'continente', elementi: 'elementi collegati', stati: 'Stati collegati', moneta: 'moneta', lingua: 'lingua', area: 'posizione', abitanti: 'abitanti', superficie: 'superficie', ue: 'UE', cap: 'capitale' };
+// il gioco con questo id nella sezione attiva (alcuni giochi hanno nomi e testi diversi nella sezione Italia)
+const giocoDi = (id, m) => GIOCHI.find(x => x.id === id && x.modo === m && x.sez.includes(SZ.id)) || GIOCHI.find(x => x.id === id && x.modo === m);
+const TIPI_BASE = { cont: 'continente', elementi: 'elementi collegati', stati: 'Stati collegati', moneta: 'moneta', lingua: 'lingua', area: 'posizione', abitanti: 'abitanti', superficie: 'superficie', ue: 'UE', cap: 'capitale', reg: 'regione' };
+const TIPI = { ...TIPI_BASE };
 
 // ---------- memoria locale (impostazioni, profili, statistiche) ----------
 const mem = {
@@ -77,7 +104,7 @@ function registra(chiave, ok) {
 }
 const baseId = k => k.split('|')[0];
 const etichettaChiave = k => { const [b, t] = k.split('|'); return nome(b) + (t ? ` <small>(${TIPI[t] || t})</small>` : ''); };
-const gruppoChiave = k => { const b = baseId(k); if (k.endsWith('|elementi')) return 'Elementi collegati'; return per[b] ? 'Stati' : cat(fis[b].cat).nome; };
+const gruppoChiave = k => { const b = baseId(k); if (k.endsWith('|elementi')) return 'Elementi collegati'; return per[b] ? (ITA() ? (per[b].citta ? 'Capoluoghi' : 'Regioni') : 'Stati') : cat(fis[b].cat).nome; };
 
 // ---------- icone (tratto, colore del testo) ----------
 const ICONE = {
@@ -123,7 +150,7 @@ const infoLiv = xp => { const n = livDa(xp), a = sogliaLiv(n), b = sogliaLiv(n +
 function xpTot() {
   let x = mp.get('xp', null);
   if (x === null) { // primo avvio con l'esperienza: si recupera quella delle partite già giocate (10 XP per risposta giusta)
-    x = [...mp.get('sess', []), ...mp.get('sess_m', [])].reduce((s, p) => s + Math.round(p.p / 100 * p.n) * XP_RISPOSTA, 0);
+    x = [...mp.get('sess', []), ...mp.get('sess_m', []), ...mp.get('sess_i', [])].reduce((s, p) => s + Math.round(p.p / 100 * p.n) * XP_RISPOSTA, 0);
     mp.set('xp', x);
   }
   return x;
@@ -132,10 +159,10 @@ const MEDAGLIE = [
   { id: 'prima', nome: 'Prima partita', desc: 'Completa una partita', ic: 'bandiera', c: 'ciano' },
   { id: 'serie10', nome: 'Serie ×10', desc: '10 risposte giuste di fila', ic: 'fiamma', c: 'arancio' },
   { id: 'perfetto', nome: 'Perfetto!', desc: '100% in una partita da almeno 10 domande', ic: 'stella', c: 'oro' },
-  { id: 'capitali', nome: 'Re delle capitali', desc: '3 stelle a Le capitali', ic: 'colonne', c: 'rosso' },
+  { id: 'capitali', nome: 'Re delle capitali', desc: '3 stelle a Le capitali (o ai capoluoghi di regione)', ic: 'colonne', c: 'rosso' },
   { id: 'difficile', nome: 'Esperto', desc: '3 stelle a livello Difficile', ic: 'corona', c: 'oro' },
   { id: 'ue', nome: 'Tutta l\'UE', desc: 'Componi l\'UE senza errori', ic: 'griglia', c: 'ciano' },
-  { id: 'continente', nome: 'Giramondo', desc: 'Componi un continente senza errori', ic: 'globo', c: 'verde' },
+  { id: 'continente', nome: 'Giramondo', desc: 'Componi un continente (o un\'area d\'Italia) senza errori', ic: 'globo', c: 'verde' },
   { id: 'fisico', nome: 'Geografo', desc: '3 stelle in un gioco di geografia fisica', ic: 'monte', c: 'verde' },
   { id: 'esploratore', nome: 'Esploratore', desc: 'Apri 30 schede in Studio', ic: 'libro', c: 'ciano' },
   { id: 'tutti', nome: 'Collezionista', desc: 'Gioca tutti i giochi di una sezione', ic: 'strati', c: 'viola' },
@@ -157,8 +184,18 @@ const poolFis = (liv, cs) => F.filter(f => cs.includes(f.cat) && f.liv <= liv);
 const poolModo = (m, liv, cs) => (m === 'stati' ? pool(liv) : poolFis(liv, cs));
 const chiaveRec = (g, m, liv, cs) => m === 'stati' ? `${SZ.rec}${g}_${liv}` : `${SZ.rec}fis_${g}_${liv}_${[...cs].sort().join('-')}`;
 
-// ---------- sezioni: Europa (seconda media) e Mondo (terza media) ----------
+// ---------- sezioni: Italia (prima media), Europa (seconda media) e Mondo (terza media) ----------
 const SEZIONI = {
+  italia: {
+    id: 'italia', nome: 'Italia', suf: '_i', rec: 'reci_', zmax: 16, mk: [9, 0.16], fs: 1.9, etAdatt: true,
+    titolo: 'Impara l\'Italia', classe: 'Prima media', img: 'dati/rilievo-italia.webp',
+    testo: 'Questo è un sito didattico per <b>studiare e imparare</b> la geografia dell\'Italia: le <b>regioni</b> con i loro <b>capoluoghi</b>, i <b>capoluoghi di provincia</b> e la <b>geografia fisica</b> (mari e golfi, fiumi, laghi, monti, vette e vulcani, pianure, isole e penisole).',
+    moduli: [['stati', 'Regioni e città'], ['fisico', 'Geografia fisica']],
+    rilievo: 'dati/rilievo-italia.webp', minW: 230, mappa: 'Mappa dell\'Italia', vistaIntera: 'Vista intera dell\'Italia (torna alla mappa completa)',
+    aree: [],
+    areaDom: nome => `<b>${nome}</b>: in quale parte d'Italia si trova?`,
+    piede: 'Confini e coste: Natural Earth (dominio pubblico). Fiumi e laghi: © OpenStreetMap contributors (ODbL). Quote del terreno: Terrain Tiles su AWS Open Data. Dati arrotondati e aggiornati al 2025: per le verifiche fa fede il libro di testo. Per la Sardegna sono indicati i quattro capoluoghi di provincia storici.',
+  },
   europa: {
     id: 'europa', nome: 'Europa', suf: '', rec: 'rec_', zmax: 14, mk: [6, 0.12], etAdatt: false,
     titolo: 'Impara l\'Europa', classe: 'Seconda media', img: 'dati/rilievo.webp',
@@ -191,11 +228,21 @@ let sezPronta = null;
 async function impostaSezione(id) {
   const z = SEZIONI[id] || SEZIONI.europa;
   if (z.id === 'mondo') { await carica('dati/mondo.js'); await carica('mondo-paesi.js'); await carica('dati/mondo-fisico.js'); }
+  if (z.id === 'italia') { await carica('dati/italia.js'); await carica('italia-dati.js'); await carica('dati/italia-fisico.js'); }
   SZ = z; sezione = z.id; mem.set('sez', z.id);
+  CATS.forEach((c, i) => Object.assign(c, CATS_BASE[i], z.id === 'italia' ? CATS_ITALIA[c.id] : null));
+  Object.assign(TIPI, TIPI_BASE, z.id === 'italia' ? { stati: 'regioni collegate', cont: 'area', cap: 'capoluogo', area: 'area' } : null);
   if (z.id === 'europa') {
     E = window.EUROPA; P = window.PAESI; F = window.FISICO; X = window.CONTENUTI || {};
     if (!F.fatto) { F.forEach(f => { if (X[f.id]) Object.assign(f, X[f.id]); else console.warn('Elemento senza contenuti:', f.id); }); F.fatto = true; }
     MICRO = ['MLT', 'AND', 'MCO', 'SMR', 'VAT', 'LIE'];
+  } else if (z.id === 'italia') {
+    // regioni (con forma) e capoluoghi (punti sulla mappa, come i microstati)
+    E = window.ITALIA; P = window.PAESI_ITALIA; F = window.FISICO_ITALIA; X = {};
+    MICRO = E.micro.slice();
+    const nomi = Object.fromEntries(P.map(p => [p.id, p.nome]));
+    P.forEach(p => { if (!p.citta && !p.confFatto) { p.conf = [...(E.conf[p.id] || []).map(x => nomi[x]), ...(E.est[p.id] || [])]; p.cont = p.area; p.confFatto = true; } });
+    SZ.aree = window.AREE_ITALIA;
   } else {
     E = window.MONDO; P = window.PAESI_MONDO; F = window.FISICO_MONDO; X = {};
     const idP = new Set(P.map(p => p.id)); MICRO = E.micro.filter(id => idP.has(id));
@@ -209,7 +256,7 @@ async function impostaSezione(id) {
   cats = mem.get('cats' + SZ.suf, catsSez().map(c => c.id)).filter(c => catsSez().some(x => x.id === c));
   if (!cats.length) cats = catsSez().map(c => c.id);
   document.title = 'Geografia in gioco · ' + z.nome;
-  $('gioco').classList.toggle('sez-mondo', z.id === 'mondo');
+  $('gioco').classList.toggle('sez-mondo', z.id === 'mondo'); $('gioco').classList.toggle('sez-italia', z.id === 'italia');
   costruisciMappa();
 }
 
@@ -223,7 +270,7 @@ const monetaBase = p => p.mon.replace(/ \(.*\)/, '');
 const giochiHome = () => GIOCHI.filter(g => g.modo === modo && g.sez.includes(SZ.id));
 function giocoVuoto(g, nPool) {
   return modo === 'fisico' && g.id === 'legami' ? !poolFis(livello, cats).some(f => f.s && f.s.length)
-    : modo === 'fisico' && g.id === 'elementi' ? statiConElementi(poolFis(livello, cats), pool(Math.max(2, livello)).map(p => p.id)).length === 0 : nPool === 0;
+    : modo === 'fisico' && g.id === 'elementi' ? statiConElementi(poolFis(livello, cats), poolTerr(Math.max(2, livello)).map(p => p.id)).length === 0 : nPool === 0;
 }
 // piccola cartina politica (Stati del livello scelto colorati) per la scheda Studio
 function miniMappa(ids) {
@@ -242,7 +289,7 @@ function aggiornaProfilo() {
 function disegnaHome() {
   aggiornaProfilo(); iconaTema();
   const SC = $('sezioni'); SC.innerHTML = '';
-  ['europa', 'mondo'].forEach(id => {
+  ['italia', 'europa', 'mondo'].forEach(id => {
     const z = SEZIONI[id], b = document.createElement('button'); b.className = 'sez-btn';
     b.innerHTML = `<img src="${z.img}" alt="" loading="lazy"><span class="sez-ok">${icona('spunta')}Selezionata</span><span class="sez-dida"><small>${z.classe}</small><b>${z.nome}</b></span>`;
     b.setAttribute('aria-pressed', id === SZ.id); b.setAttribute('aria-label', `${z.nome} (${z.classe.toLowerCase()})`);
@@ -462,8 +509,10 @@ function impostaPool(ids, modoMappa) {
   const set = new Set(ids);
   Object.entries(elem).forEach(([id, [p, m]]) => {
     const att = set.has(id), micro = !!m;
-    p.setAttribute('class', 'terra' + (att ? ' attiva pol-' + (polDi[id] || 0) : '') + (att && micro ? ' micro' : ''));
-    if (m) { m.setAttribute('class', 'marker pol-' + (polDi[id] || 0)); m.style.display = att ? '' : 'none'; }
+    // Italia: le regioni restano colorate (ma non cliccabili) anche nei giochi sulle città
+    const sfondo = !att && per[id] && !per[id].citta && ITA() && svg.dataset.modo === 'stati' ? ' sfondo pol-' + (polDi[id] || 0) : '';
+    p.setAttribute('class', 'terra' + (att ? ' attiva pol-' + (polDi[id] || 0) : '') + sfondo + (att && micro ? ' micro' : ''));
+    if (m) { m.setAttribute('class', citta(id) ? 'marker citta' + (per[id].capR ? ' capr' : '') : 'marker pol-' + (polDi[id] || 0)); m.style.display = att ? '' : 'none'; }
   });
   Object.entries(elemF).forEach(([id, els]) => els.forEach(e => {
     const att = set.has(id);
@@ -472,9 +521,16 @@ function impostaPool(ids, modoMappa) {
   }));
   Object.values(etich).forEach(t => t.style.display = 'none');
 }
-function statoClasse(id, cls, on = true) { [...(elem[id] || []), ...(elemF[id] || [])].forEach(e => e.classList.toggle(cls, on)); }
+function statoClasse(id, cls, on = true) {
+  [...(elem[id] || []), ...(elemF[id] || [])].forEach(e => e.classList.toggle(cls, on));
+  if (citta(id)) raggioMarker(elem[id][1], Math.max(vb.w / E.W, SZ.mk[1]));
+}
+// raggio dei segnaposto: più grande per i capoluoghi di regione e per il punto evidenziato (o appena scelto)
+const MARCATI = ['evidenzia', 'sel', 'giusto', 'sbagliato', 'manca'];
+const raggioMarker = (c, kk) => c.setAttribute('r', SZ.mk[0] * kk * (c.classList.contains('capr') ? 1.3 : 1) * (citta(c.dataset.id) && MARCATI.some(x => c.classList.contains(x)) ? 1.7 : 1));
 function pulisciStati() {
   [...Object.values(elem), ...Object.values(elemF)].forEach(l => l.forEach(e => e.classList.remove('evidenzia', 'sel', 'giusto', 'sbagliato', 'manca', 'ue', ...CLS_CONT)));
+  if (ITA()) gMarker.querySelectorAll('circle').forEach(c => raggioMarker(c, Math.max(vb.w / E.W, SZ.mk[1])));
 }
 
 // zoom e spostamento
@@ -484,23 +540,27 @@ function applicaVista() {
   svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const k = vb.w / E.W;
   const kk = Math.max(k, SZ.mk[1]);
-  gMarker.querySelectorAll('circle').forEach(c => c.setAttribute('r', SZ.mk[0] * kk));
+  gMarker.querySelectorAll('circle').forEach(c => raggioMarker(c, kk));
   gFMark.querySelectorAll('circle').forEach(c => c.setAttribute('r', (c.classList.contains('fmark-vetta') ? 5 : 10) * kk));
   gPt.querySelectorAll('path').forEach(t => t.setAttribute('transform', `translate(${t.dataset.x} ${t.dataset.y}) scale(${kk})`));
   if (gArmate) gArmate.querySelectorAll('g').forEach(g => g.setAttribute('transform', `translate(${g.dataset.x} ${g.dataset.y}) scale(${Math.max(k, 0.25)})`));
-  const fs = 12 * k;
+  const fs = 12 * k * (SZ.fs || 1);   // la carta d'Italia è più piccola sullo schermo: nomi più grandi
   if (SZ.etAdatt) return aggiornaEtichetteMondo(k, fs);
   Object.entries(etich).forEach(([id, t]) => {
     t.style.fontSize = fs + 'px'; t.style.strokeWidth = (3 * k) + 'px';
     if (t.dataset.micro) t.style.display = (etichetteOn && k < 0.4 && S && S.pool.includes(t.dataset.id)) ? '' : 'none';
   });
 }
-// Mondo: un nome compare se c'è posto per leggerlo e non copre un nome più importante (gli elementi più importanti hanno la precedenza)
+// Mondo e Italia: un nome compare se c'è posto per leggerlo e non copre un nome più importante (gli elementi più importanti hanno la precedenza)
 function aggiornaEtichetteMondo(k, fs) {
   const candidate = [];
   Object.entries(etich).forEach(([id, t]) => {
-    t.style.fontSize = fs + 'px'; t.style.strokeWidth = (3 * k) + 'px';
+    t.style.fontSize = fs + 'px'; t.style.strokeWidth = (fs / 4) + 'px';
     if (!etichetteOn || !S || !S.pool.includes(id)) { t.style.display = 'none'; return; }
+    if (citta(id)) { // capoluoghi: il nome sta sopra il punto; prima quelli di regione
+      t.setAttribute('y', E.centri[id][1] - SZ.mk[0] * Math.max(k, SZ.mk[1]) * 1.3 - fs * 0.3);
+      candidate.push([id, t, per[id].capR ? 0.5 : 1 + per[id].liv, 0, t.textContent.length * 0.56 * fs]); return;
+    }
     if (!t.dataset.bw) { const e = (elem[id] || elemF[id])[0], b = e.getBBox(); t.dataset.bw = e.classList.contains('pt') ? 25 : Math.max(b.width, b.height * 1.6); }
     const stato = !!per[id], largo = t.textContent.length * 0.56 * fs;
     if (stato && t.dataset.micro) { if (k >= 0.12) { t.style.display = 'none'; return; } }
@@ -532,6 +592,12 @@ function vaiA(id) {
     vb = { x: cx - w / 2, y: cy - w * E.H / E.W / 2, w, h: w * E.H / E.W }; return applicaVista();
   }
   const c = E.centri[id], b = elem[id][0].getBBox();
+  if (ITA()) { // capoluogo: un riquadro intorno al punto; regione: tutta la regione con un po' di margine
+    const w = citta(id) ? 330 : Math.min(E.W, Math.max(SZ.minW, b.width * 1.5, b.height * 1.5 * E.W / E.H));
+    if (w > E.W * 0.8) return vistaIntera();
+    const cx = citta(id) ? c[0] : b.x + b.width / 2, cy = citta(id) ? c[1] : b.y + b.height / 2;
+    vb = { x: cx - w / 2, y: cy - w * E.H / E.W / 2, w, h: w * E.H / E.W }; return applicaVista();
+  }
   if (SZ.id === 'mondo') { // inquadra lo Stato con un po' di margine; i più grandi si vedono sulla mappa intera
     const lato = Math.max(b.width, b.height * E.W / E.H), w = Math.max(90, lato * 3.4);
     if (!c || w > E.W * 0.55) return vistaIntera();
@@ -592,11 +658,13 @@ function avvia(gioco, soloIds) {
   suonoSerie();
   clearInterval(timer);
   modoAttivo = modo;
-  const poolIds = soloIds
+  const gi = giocoDi(gioco, modo);
+  let poolIds = soloIds
     ? (modo === 'stati' ? pool(3) : poolFis(3, catsSez().map(c => c.id))).map(p => p.id)
     : poolModo(modo, livello, cats).map(p => p.id);
-  S = { gioco, modo, cats: cats.slice(), liv: livello, pool: poolIds, i: 0, punti: 0, errori: [], t0: Date.now(), blocca: false, tent: 0, serie: 0, serieMax: 0, xp: 0, esiti: [] };
-  const gi = GIOCHI.find(x => x.id === gioco && x.modo === modo);
+  // Italia: ogni gioco è sulle regioni o sui capoluoghi (nel ripasso degli errori possono esserci entrambi)
+  if (ITA() && modo === 'stati' && gi.ent && !soloIds) poolIds = poolIds.filter(id => citta(id) === (gi.ent === 'citta'));
+  S = { gioco, base: gi.base || gioco, modo, cats: cats.slice(), liv: livello, pool: poolIds, i: 0, punti: 0, errori: [], t0: Date.now(), blocca: false, tent: 0, serie: 0, serieMax: 0, xp: 0, esiti: [] };
   $('hudNome').textContent = gi.nome;
   $('hudSub').textContent = gioco === 'studio' ? `${SZ.nome} · esplorazione` : `${SZ.nome} · ${LIVELLI[livello - 1].nome}`;
   $('hudPods').hidden = gioco === 'studio' || gioco === 'risiko';
@@ -675,12 +743,12 @@ document.addEventListener('keydown', e => {
 function prossima() {
   if (S.i >= S.coda.length) return finisci();
   S.blocca = false; S.tent = 0; pulisciStati(); aggiornaStat();
-  const id = S.coda[S.i], g = S.gioco;
+  const id = S.coda[S.i], g = S.base;
   $('pannello').innerHTML = '';
   if (g === 'trova') {
     vistaIntera(); svg.parentElement.classList.add('interattivo');
-    const cf = fis[id] && cat(fis[id].cat);
-    $('domanda').innerHTML = `Clicca su: <b>${nome(id)}</b>${cf ? ` <span class="tipo">(${cf.sing})</span>` : ''}<small>Hai due tentativi.${cf && cf.id === 'mari' ? ' I mari si cliccano sull\'acqua.' : cf && cf.id === 'stretti' ? ' Gli stretti sono piccoli: puoi ingrandire la mappa.' : ''}</small>`;
+    const cf = fis[id] && cat(fis[id].cat), tipo = cf ? cf.sing : ITA() ? (citta(id) ? 'città' : 'regione') : '';
+    $('domanda').innerHTML = `Clicca su: <b>${nome(id)}</b>${tipo ? ` <span class="tipo">(${tipo})</span>` : ''}<small>Hai due tentativi.${cf && cf.id === 'mari' ? ' I mari si cliccano sull\'acqua.' : cf && cf.id === 'stretti' ? ' Gli stretti sono piccoli: puoi ingrandire la mappa.' : citta(id) ? ' Le città sono i punti bianchi: puoi ingrandire la mappa.' : ''}</small>`;
     sulClic = cl => rispondiTrova(id, cl);
     return;
   }
@@ -691,18 +759,29 @@ function prossima() {
     const cf = cat(fis[id].cat), a = fis[id].c;
     const dist = x => Math.hypot(a[0] - x.c[0], a[1] - x.c[1]);
     let cand = S.pool.map(x => fis[x]).filter(x => x.id !== id && x.cat === cf.id).sort((x, y) => dist(x) - dist(y)).slice(0, 9);
+    // pochi elementi di questa categoria nel livello: si prendono dello stesso tipo dagli altri livelli, poi di altri tipi
+    if (cand.length < 3) cand = cand.concat(F.filter(x => x.id !== id && x.cat === cf.id && !cand.includes(x)).sort((x, y) => dist(x) - dist(y)).slice(0, 3 - cand.length));
     if (cand.length < 3) cand = cand.concat(mescola(S.pool.map(x => fis[x]).filter(x => x.id !== id && x.cat !== cf.id)).slice(0, 3 - cand.length));
     const opz = mescola([fis[id], ...mescola(cand).slice(0, 3)]);
     $('domanda').textContent = cf.q;
     scegli(opz.map(o => ({ testo: o.nome, ok: o.id === id })), ok => esito(id, ok, infoElemento(fis[id]), id));
   } else if (g === 'indovina' || g === 'capitali') {
-    const vicini = P.filter(p => S.pool.includes(p.id) && p.id !== id).map(p => {
+    // risposte sbagliate plausibili: i vicini dello stesso tipo (in Italia: regioni con regioni, città con città)
+    const simili = P.filter(p => p.id !== id && citta(p.id) === citta(id) && E.centri[p.id]), nelPool = simili.filter(p => S.pool.includes(p.id));
+    const vicini = (nelPool.length >= 3 ? nelPool : simili).map(p => {
       const a = E.centri[id], b = E.centri[p.id]; return { p, d: Math.hypot(a[0] - b[0], a[1] - b[1]) };
     }).sort((x, y) => x.d - y.d).slice(0, 9).map(o => o.p);
     const altri = mescola(vicini).slice(0, 3), opz = mescola([per[id], ...altri]);
     const chiave = g === 'indovina' ? 'nome' : 'cap';
-    $('domanda').innerHTML = g === 'indovina' ? 'Quale Stato è evidenziato?' : `<b>${nome(id)}</b>: qual è la capitale?`;
+    $('domanda').innerHTML = g === 'indovina' ? (ITA() ? (citta(id) ? 'Quale città è evidenziata?' : 'Quale regione è evidenziata?') : 'Quale Stato è evidenziato?')
+      : ITA() ? `<b>${nome(id)}</b>: qual è il capoluogo di regione?` : `<b>${nome(id)}</b>: qual è la capitale?`;
     scegli(opz.map(o => ({ testo: o[chiave], ok: o.id === id })), ok => esito(id, ok, infoPaese(per[id]), g === 'capitali' ? id + '|cap' : id));
+  } else if (g === 'regioneDi') {
+    const p = per[id], a = E.centri[id];
+    const vicine = P.filter(r => !r.citta && r.id !== p.reg).map(r => ({ r, d: Math.hypot(E.centri[r.id][0] - a[0], E.centri[r.id][1] - a[1]) }))
+      .sort((x, y) => x.d - y.d).slice(0, 5).map(o => o.r);
+    $('domanda').innerHTML = `<b>${p.nome}</b>: in quale regione si trova?`;
+    scegli(mescola([per[p.reg], ...mescola(vicine).slice(0, 3)]).map(o => ({ testo: o.nome, ok: o.id === p.reg })), ok => esito(id, ok, infoPaese(p), id + '|reg'));
   } else if (g === 'continente') {
     const p = per[id];
     $('domanda').innerHTML = `<b>${p.nome}</b>: in quale continente si trova?`;
@@ -729,6 +808,7 @@ function scegli(opzioni, fine) {
   $('pannello').appendChild(box);
 }
 function infoPaese(p) {
+  if (ITA()) return p.citta ? `<b>${p.nome}</b> · ${ruoloCitta(p)}.` : `<b>${p.nome}</b> · capoluogo ${p.cap} · ${p.area}.`;
   if (SZ.id === 'mondo') return `<b>${p.nome}</b> · capitale ${p.cap} · ${p.cont}.`;
   return `<b>${p.nome}</b> · capitale ${p.cap} · ${p.ue ? 'membro dell\'UE' : 'non fa parte dell\'UE'}.`;
 }
@@ -776,7 +856,26 @@ function rispondiTrova(id, cl) {
 function showMsg(html, cls) { $('pannello').innerHTML = `<div class="msg ${cls || ''}">${html}</div>`; }
 
 // ---------- carta d'identità ----------
+const ruoloCitta = p => `${p.id === 'c_rm' ? 'capitale d\'Italia e capoluogo di regione' : p.capR ? 'capoluogo di regione' : 'capoluogo di provincia'} · ${per[p.reg].nome}`;
 function cartaStato(p) {
+  if (ITA() && p.citta) {
+    const r = per[p.reg];
+    return `<div class="carta">
+    <div class="carta-testa"><h3>${p.nome}</h3><span class="badge ${p.capR ? 'si' : 'no'}">${p.id === 'c_rm' ? 'Capitale d\'Italia' : p.capR ? 'Capoluogo di regione' : 'Capoluogo di provincia'}</span></div>
+    <dl class="carta-griglia"><div><dt>Regione</dt><dd>${r.nome}</dd></div><div><dt>Area</dt><dd>${r.area}</dd></div>${p.capR ? '' : `<div><dt>Capoluogo della regione</dt><dd>${r.cap}</dd></div>`}</dl>
+    ${p.chicca ? `<p class="chicca">${p.chicca}</p>` : ''}
+  </div>`;
+  }
+  if (ITA()) {
+    const righe = [['Capoluogo', p.cap], ['Area', p.area], ['Posizione', p.pos], ['Confina con', p.conf.length ? p.conf.join(', ') : 'Nessuna regione (isola)'],
+      ['Bagnata da', p.mari || 'Nessun mare'], ['Superficie', fmtSup(p.sup)], ['Abitanti', fmtAb(p.ab)],
+      [p.prov.length === 1 ? 'Capoluogo di provincia' : `Capoluoghi di provincia (${p.prov.length})`, p.prov.join(', ')]];
+    return `<div class="carta">
+    <div class="carta-testa"><h3>${p.nome}</h3><span class="badge ${p.speciale ? 'si' : 'no'}">${p.speciale ? 'Regione a statuto speciale' : 'Regione a statuto ordinario'}</span></div>
+    <dl class="carta-griglia">${righe.map(([l, v]) => `<div><dt>${l}</dt><dd>${v}</dd></div>`).join('')}</dl>
+    <p class="chicca">${p.chicca}</p>
+  </div>`;
+  }
   if (SZ.id === 'mondo') {
     const r = [['🏛️', 'Capitale', p.cap], ['🌍', 'Continente', p.cont], ['📍', 'Posizione', p.pos], ['🧭', 'Confina con', p.conf.length ? p.conf.join(', ') : 'Nessuno Stato (isola)'],
       ['📐', 'Superficie', fmtSup(p.sup)], ['👥', 'Abitanti', fmtAb(p.ab)], ['💶', 'Moneta', p.mon], ['🗣️', 'Lingua', p.lin], ['⚖️', 'Governo', p.gov]];
@@ -803,14 +902,14 @@ function schedaElemento(p) {
   const stati = (p.s || []).map(nomeStato).join(', ');
   return `<div class="carta"><div class="carta-testa"><h3>${p.nome}</h3><span class="badge no">${cat(p.cat).sing}</span></div>
     ${p.info ? `<p>${p.info}</p>` : ''}
-    ${stati ? `<p class="stati-lista"><b>Stati collegati:</b> ${stati}</p>` : ''}
+    ${stati ? `<p class="stati-lista"><b>${ITA() ? 'Regioni' : 'Stati collegati'}:</b> ${stati}</p>` : ''}
     ${p.chicca ? `<p class="chicca">${p.chicca}</p>` : ''}</div>`;
 }
 
 // domande sulla carta d'identità degli Stati
 function domandaIdentita(id) {
   const p = per[id], altri = P.filter(x => S.pool.includes(x.id) && x.id !== id);
-  const tipi = ['moneta', 'lingua', 'area', 'abitanti', 'superficie'].filter(x => !(x === 'area' && p.amb));
+  const tipi = (ITA() ? ['area', 'abitanti', 'superficie'] : ['moneta', 'lingua', 'area', 'abitanti', 'superficie']).filter(x => !(x === 'area' && p.amb));
   const t = tipi[Math.random() * tipi.length | 0];
   const distinti = (valore, lista, n = 3) => mescola([...new Set(lista.filter(v => v !== valore))]).slice(0, n);
   if (t === 'moneta' || t === 'lingua') {
@@ -827,14 +926,15 @@ function domandaIdentita(id) {
     const opz = mescola([p.area, ...mescola(SZ.aree.filter(a => a !== p.area)).slice(0, 3)]);
     statoClasse(id, 'evidenzia'); vaiA(id);
     $('domanda').innerHTML = SZ.areaDom(p.nome);
-    scegli(opz.map(o => ({ testo: o, ok: o === p.area })), ok => esito(id, ok, `<b>${p.nome}</b> si trova in: ${p.area.toLowerCase()}. ${p.pos}.`, id + '|area'));
+    scegli(opz.map(o => ({ testo: o, ok: o === p.area })), ok => esito(id, ok, `<b>${p.nome}</b> si trova in: ${ITA() ? p.area : p.area.toLowerCase()}. ${p.pos}.`, id + '|area'));
   } else { // confronto numerico
     const campo = t === 'abitanti' ? 'ab' : 'sup';
     const gruppo = [p];
     for (const c of mescola(altri)) { if (gruppo.length >= 4) break; if (gruppo.every(g => Math.max(g[campo], c[campo]) / Math.min(g[campo], c[campo]) >= 1.25)) gruppo.push(c); }
     if (gruppo.length < 3) return domandaIdentita(id); // pool troppo piccolo/omogeneo: riprova con un altro tipo
     const vinc = gruppo.reduce((a, b) => (b[campo] > a[campo] ? b : a));
-    $('domanda').textContent = t === 'abitanti' ? 'Quale di questi Stati ha più abitanti?' : 'Quale di questi Stati ha la superficie più estesa?';
+    const chi = ITA() ? 'queste regioni' : 'questi Stati';
+    $('domanda').textContent = t === 'abitanti' ? `Quale di ${chi} ha più abitanti?` : `Quale di ${chi} ha la superficie più estesa?`;
     const elenco = gruppo.slice().sort((a, b) => b[campo] - a[campo]).map(g => `${g.nome}: ${t === 'abitanti' ? fmtAb(g.ab) : fmtSup(g.sup)}`).join(' · ');
     scegli(mescola(gruppo).map(g => ({ testo: g.nome, ok: g === vinc })), ok => esito(null, ok, elenco, id + '|' + t));
   }
@@ -844,21 +944,22 @@ function domandaIdentita(id) {
 function avviaStudio() {
   const fisico = S.modo === 'fisico';
   $('stat').textContent = ''; $('barraProg').style.width = '0%';
-  $('domanda').innerHTML = `Esplora la mappa<small>Tocca ${fisico ? 'un elemento' : 'uno Stato'}. Trascina per spostarti, usa + e − (o pizzica) per ingrandire.</small>`;
+  const cosa = fisico ? 'un elemento' : ITA() ? 'una regione o un capoluogo' : 'uno Stato', perArea = !fisico && SZ.id !== 'europa';
+  $('domanda').innerHTML = `Esplora la mappa<small>Tocca ${cosa}. Trascina per spostarti, usa + e − (o pizzica) per ingrandire.</small>`;
   svg.parentElement.classList.add('interattivo');
   $('pannello').innerHTML = `<div class="opzioni"><label><input type="checkbox" id="optNomi" checked> Mostra i nomi</label>
-    ${fisico ? '' : SZ.id === 'mondo' ? '<label><input type="checkbox" id="optCont" checked> Colora per continente</label>' : '<label><input type="checkbox" id="optUE" checked> Colora gli Stati dell\'UE</label>'}</div>
-    ${SZ.id === 'mondo' ? '<div class="legenda" id="legenda"></div>' : ''}
-    <div id="scheda"><div class="carta vuota">Tocca ${fisico ? 'un elemento' : 'uno Stato'} per aprire la sua scheda.</div></div>`;
+    ${fisico ? '' : perArea ? `<label><input type="checkbox" id="optCont" ${ITA() ? '' : 'checked'}> ${ITA() ? 'Colora per area (Nord, Centro, Sud e Isole)' : 'Colora per continente'}</label>` : '<label><input type="checkbox" id="optUE" checked> Colora gli Stati dell\'UE</label>'}</div>
+    ${perArea ? '<div class="legenda" id="legenda"></div>' : ''}
+    <div id="scheda"><div class="carta vuota">Tocca ${cosa} per aprire la sua scheda.</div></div>`;
   const nomi = () => { etichetteOn = $('optNomi').checked;
     if (SZ.etAdatt) { Object.entries(etich).forEach(([id, t]) => { t.dataset.micro = MICRO.includes(id) ? '1' : ''; }); return applicaVista(); }
     Object.entries(etich).forEach(([id, t]) => { const micro = MICRO.includes(id); t.dataset.micro = micro ? '1' : '';
       t.style.display = etichetteOn && S.pool.includes(id) && !micro ? '' : 'none'; }); applicaVista(); };
   $('optNomi').onchange = nomi; nomi();
-  if (!fisico && SZ.id === 'mondo') {
+  if (perArea) {
     const col = () => {
       const on = $('optCont').checked;
-      S.pool.forEach(id => SZ.aree.forEach((c, i) => statoClasse(id, 'cont-' + i, on && per[id].cont === c)));
+      S.pool.filter(id => !citta(id)).forEach(id => SZ.aree.forEach((c, i) => statoClasse(id, 'cont-' + i, on && per[id].cont === c)));
       $('legenda').innerHTML = on ? SZ.aree.map((c, i) => `<span><i class="cont-${i}"></i>${c}</span>`).join('') : '';
     };
     $('optCont').onchange = col; col();
@@ -877,7 +978,7 @@ function avviaStudio() {
 
 // ---------- componi l'UE / componi il continente ----------
 // membri: Stati da selezionare; tolleranti: Stati ambigui che non danno né punti né penalità; chiave: voce per le statistiche
-function giocoSelezione({ membri, tollerati, titolo, sotto, chiave }) {
+function giocoSelezione({ membri, tollerati, titolo, sotto, chiave, dimenticati: cosaManca }) {
   const sel = new Set();
   S.stat = () => `Selezionati ${sel.size}`;
   S.coda = null; S.t0 = Date.now(); timer = setInterval(aggiornaStat, 1000); aggiornaStat();
@@ -897,7 +998,7 @@ function giocoSelezione({ membri, tollerati, titolo, sotto, chiave }) {
     });
     S.punti = Math.max(0, giusti - sbagliati); S.totale = membri.size; suono(!sbagliati && !dimenticati ? 'ok' : 'ko');
     S.xp += S.punti * XP_RISPOSTA / 2; if (S.punti) volaXp(S.punti * XP_RISPOSTA / 2); aggiornaStat();
-    $('pannello').innerHTML = `<div class="msg ${!sbagliati && !dimenticati ? 'ok' : ''}">${titoloEsito(!sbagliati && !dimenticati ? 'Perfetto!' : `${giusti} giusti su ${membri.size}`)}Verde: giusti (${giusti}) · Rosso: scelti per errore (${sbagliati}) · Arancione: ${SZ.id === 'mondo' ? 'Stati del continente' : 'UE'} che avevi dimenticato (${dimenticati}).${tollerati.size ? ' Gli Stati a cavallo tra due continenti non cambiano il punteggio.' : ''}</div>
+    $('pannello').innerHTML = `<div class="msg ${!sbagliati && !dimenticati ? 'ok' : ''}">${titoloEsito(!sbagliati && !dimenticati ? 'Perfetto!' : `${giusti} ${ITA() ? 'giuste' : 'giusti'} su ${membri.size}`)}Verde: ${ITA() ? 'giuste' : 'giusti'} (${giusti}) · Rosso: ${ITA() ? 'scelte' : 'scelti'} per errore (${sbagliati}) · Arancione: ${cosaManca} che avevi dimenticato (${dimenticati}).${tollerati.size ? ' Gli Stati a cavallo tra due continenti non cambiano il punteggio.' : ''}</div>
       <button class="primario" id="vaiFine">Vedi il risultato <span class="tasto">INVIO</span></button>`;
     $('vaiFine').onclick = finisci;
   };
@@ -905,7 +1006,7 @@ function giocoSelezione({ membri, tollerati, titolo, sotto, chiave }) {
 function avviaColoraUE() {
   const eu = S.pool.filter(id => per[id].ue);
   giocoSelezione({ membri: new Set(eu), tollerati: new Set(), titolo: 'Seleziona tutti gli Stati dell\'Unione europea',
-    sotto: `In questo livello ce ne sono ${eu.length}. Tocca di nuovo per togliere la selezione, poi premi Verifica.`, chiave: '|ue' });
+    sotto: `In questo livello ce ne sono ${eu.length}. Tocca di nuovo per togliere la selezione, poi premi Verifica.`, chiave: '|ue', dimenticati: 'Stati dell\'UE' });
 }
 function avviaColoraCont() {
   const certi = c => S.pool.filter(id => per[id].cont === c && !per[id].amb);
@@ -913,8 +1014,9 @@ function avviaColoraCont() {
   const cont = possibili[Math.random() * possibili.length | 0], membri = certi(cont);
   S.cont = cont;
   giocoSelezione({ membri: new Set(membri), tollerati: new Set(S.pool.filter(id => per[id].amb && per[id].alt.includes(cont))),
-    titolo: `Seleziona tutti gli Stati di questo continente: <b>${cont}</b>`,
-    sotto: `In questo livello ce ne sono ${membri.length}. Tocca di nuovo per togliere la selezione, poi premi Verifica.`, chiave: '|cont' });
+    titolo: ITA() ? `Seleziona tutte le regioni di quest'area: <b>${cont}</b>` : `Seleziona tutti gli Stati di questo continente: <b>${cont}</b>`,
+    sotto: `${ITA() ? 'In tutto sono' : 'In questo livello ce ne sono'} ${membri.length}. Tocca di nuovo per togliere la selezione, poi premi Verifica.`, chiave: '|cont',
+    dimenticati: ITA() ? 'regioni dell\'area' : 'Stati del continente' });
 }
 
 
@@ -1076,7 +1178,7 @@ function avviaRisiko() {
 // ---------- stati collegati (elementi fisici ↔ Stati) ----------
 // Lo studente legge solo il nome dell'elemento: la mappa non lo mostra (salvo che chieda aiuto, a metà punteggio).
 function avviaLegami(soloIds) {
-  const statiPool = pool(Math.max(2, S.liv)).map(p => p.id), set = new Set(statiPool);
+  const statiPool = poolTerr(Math.max(2, S.liv)).map(p => p.id), set = new Set(statiPool);
   let elementi = poolFis(S.liv, S.cats).filter(f => f.s && f.s.some(x => set.has(x)));
   if (soloIds) elementi = F.filter(f => soloIds.includes(f.id) && f.s && f.s.some(x => set.has(x)));
   let coda = mescola(elementi.map(f => f.id));
@@ -1092,7 +1194,8 @@ function avviaLegami(soloIds) {
     let aiuto = false;
     const mostraElemento = () => { elemF[id].forEach(e => { e.style.display = ''; }); statoClasse(id, 'evidenzia'); };
     svg.parentElement.classList.add('interattivo');
-    $('domanda').innerHTML = `${f.q || `Quali Stati tocca: ${f.nome}?`}<small>${cat(f.cat).sing[0].toUpperCase() + cat(f.cat).sing.slice(1)}: <b>${f.nome}</b> — seleziona gli Stati sulla mappa, poi premi Verifica.${S.liv === 1 ? ` Gli Stati giusti sono ${ok.length}.` : ''}</small>`;
+    const reg = ITA(), giuste = ok.length === 1 ? (reg ? 'C\'è una sola regione giusta.' : 'C\'è un solo Stato giusto.') : reg ? `Le regioni giuste sono ${ok.length}.` : `Gli Stati giusti sono ${ok.length}.`;
+    $('domanda').innerHTML = `${f.q || `Quali Stati tocca: ${f.nome}?`}<small>${cat(f.cat).sing[0].toUpperCase() + cat(f.cat).sing.slice(1)}: <b>${f.nome}</b> — seleziona ${reg ? 'le regioni' : 'gli Stati'} sulla mappa, poi premi Verifica.${S.liv === 1 ? ' ' + giuste : ''}</small>`;
     $('pannello').innerHTML = '<div class="azioni-riga"><button class="primario" id="verifica">Verifica</button><button class="secondario" id="aiuto">Mostrami l\'elemento (mezzo punto)</button></div>';
     sulClic = sid => { if (S.blocca || !set.has(sid)) return; sel.has(sid) ? sel.delete(sid) : sel.add(sid); statoClasse(sid, 'sel', sel.has(sid)); };
     $('aiuto').onclick = () => { aiuto = true; mostraElemento(); $('aiuto').disabled = true; };
@@ -1107,7 +1210,7 @@ function avviaLegami(soloIds) {
       const bonus = segna(perfetto, Math.round(XP_RISPOSTA * frazione));
       const nomi = a => a.map(nomeStato).join(', ');
       const m = document.createElement('div'); m.className = 'msg ' + (perfetto ? 'ok' : 'ko');
-      m.innerHTML = titoloEsito(perfetto ? 'Perfetto!' : `Ne hai trovati ${giusti.length} su ${ok.length}`, bonus) + (aiuto ? 'Con aiuto: mezzo punto. ' : '') + `Stati corretti: <b>${nomi(ok)}</b>.` +
+      m.innerHTML = titoloEsito(perfetto ? 'Perfetto!' : `Ne hai ${ITA() ? 'trovate' : 'trovati'} ${giusti.length} su ${ok.length}`, bonus) + (aiuto ? 'Con aiuto: mezzo punto. ' : '') + `${ITA() ? 'Regioni giuste' : 'Stati corretti'}: <b>${nomi(ok)}</b>.` +
         (sbagliati.length ? `<br>Da togliere: ${nomi(sbagliati)}.` : '') + (mancanti.length ? `<br>Ti mancava: ${nomi(mancanti)}.` : '') +
         (f.chicca ? `<br><b>Lo sapevi?</b> ${f.chicca}` : (f.info ? `<br>${f.info}` : ''));
       $('pannello').innerHTML = ''; $('pannello').appendChild(m);
@@ -1126,7 +1229,7 @@ function statiConElementi(elementi, statiIds) {
   return statiIds.filter(id => (m[id] || []).length >= 2);
 }
 function avviaElementi(soloIds) {
-  const statiPool = pool(Math.max(2, S.liv)).map(p => p.id), set = new Set(statiPool);
+  const statiPool = poolTerr(Math.max(2, S.liv)).map(p => p.id), set = new Set(statiPool);
   const elementi = poolFis(S.liv, S.cats);
   const rel = {};
   elementi.forEach(f => (f.s || []).forEach(x => { (rel[x] = rel[x] || []).push(f); }));
@@ -1149,7 +1252,7 @@ function avviaElementi(soloIds) {
     const scelte = new Set();
     statoClasse(id, 'evidenzia'); vaiA(id);
     svg.parentElement.classList.remove('interattivo'); sulClic = null;
-    $('domanda').innerHTML = `Quali di questi elementi si trovano nello Stato evidenziato?<small>Stato: <b>${nome(id)}</b>. Seleziona quelli che pensi giusti (possono essere più di uno), poi premi Verifica.</small>`;
+    $('domanda').innerHTML = `Quali di questi elementi si trovano ${ITA() ? 'nella regione evidenziata' : 'nello Stato evidenziato'}?<small>${ITA() ? 'Regione' : 'Stato'}: <b>${nome(id)}</b>. Seleziona quelli che pensi giusti (possono essere più di uno), poi premi Verifica.</small>`;
     const box = document.createElement('div'); box.className = 'risposte molte';
     opzioni.forEach(o => {
       const b = document.createElement('button'); b.className = 'rispo'; b.setAttribute('aria-pressed', 'false');
@@ -1174,7 +1277,7 @@ function avviaElementi(soloIds) {
       const m = document.createElement('div'); m.className = 'msg ' + (perfetto ? 'ok' : 'ko');
       m.innerHTML = titoloEsito(perfetto ? 'Perfetto!' : `Ne hai trovati ${hit.length} su ${gIds.length}`, bonus) + `Elementi giusti: <b>${nomi(gIds)}</b>.` +
         (err.length ? `<br>Non si trovano lì: ${nomi(err)}.` : '') +
-        (altri.length ? `<br>Nello stesso Stato troviamo anche: ${nomi(altri)}.` : '');
+        (altri.length ? `<br>${ITA() ? 'Nella stessa regione' : 'Nello stesso Stato'} troviamo anche: ${nomi(altri)}.` : '');
       $('pannello').appendChild(m);
       const tok = S; const b = document.createElement('button'); b.className = 'primario'; b.innerHTML = 'Avanti <span class="tasto">INVIO</span>';
       b.onclick = () => { if (S === tok) { S.i++; prox(); } }; $('pannello').appendChild(b);
@@ -1187,20 +1290,32 @@ function avviaElementi(soloIds) {
 // ---------- simulazione della verifica (Europa e Mondo) ----------
 // Come in classe: niente aiuti né correzioni durante la prova; alla fine il voto in decimi e la correzione domanda per domanda.
 // Ogni insegnante prepara la propria verifica dal sito («Prepara la verifica»): è salvata online (api/verifica.js) con un codice, e gli studenti la aprono scrivendo il codice.
+// ent (solo Italia): su quali voci della lista «stati» si fanno le domande (regioni o capoluoghi); it: nomi diversi nella sezione Italia
 const VER_TIPI = [
   { id: 'fisica', fis: true, nome: 'Riconosci l\'elemento fisico', breve: 'Riconosci', frase: n => `${n} ${n === 1 ? 'elemento fisico' : 'elementi fisici'} da riconoscere` },
   { id: 'trovaFis', fis: true, nome: 'Trova l\'elemento fisico sulla carta', breve: 'Trova elemento', frase: n => `${n} ${n === 1 ? 'elemento fisico' : 'elementi fisici'} da trovare sulla carta` },
-  { id: 'trova', nome: 'Trova lo Stato sulla carta', breve: 'Trova Stato', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da trovare sulla carta` },
-  { id: 'indovina', nome: 'Riconosci lo Stato evidenziato', breve: 'Che Stato è', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da riconoscere` },
-  { id: 'capitali', nome: 'Scegli la capitale', breve: 'Capitali', frase: n => `${n} ${n === 1 ? 'capitale' : 'capitali'}` },
+  { id: 'trova', nome: 'Trova lo Stato sulla carta', breve: 'Trova Stato', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da trovare sulla carta`,
+    it: { ent: 'reg', nome: 'Trova la regione sulla carta', breve: 'Trova regione', frase: n => `${n} ${n === 1 ? 'regione' : 'regioni'} da trovare sulla carta` } },
+  { id: 'indovina', nome: 'Riconosci lo Stato evidenziato', breve: 'Che Stato è', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da riconoscere`,
+    it: { ent: 'reg', nome: 'Riconosci la regione evidenziata', breve: 'Che regione è', frase: n => `${n} ${n === 1 ? 'regione' : 'regioni'} da riconoscere` } },
+  { id: 'capitali', nome: 'Scegli la capitale', breve: 'Capitali', frase: n => `${n} ${n === 1 ? 'capitale' : 'capitali'}`,
+    it: { ent: 'reg', nome: 'Scegli il capoluogo di regione', breve: 'Capoluoghi', frase: n => `${n} ${n === 1 ? 'capoluogo' : 'capoluoghi'} di regione` } },
+  { id: 'trovaCitta', sez: 'italia', ent: 'citta', nome: 'Trova la città sulla carta', breve: 'Trova città', frase: n => `${n} ${n === 1 ? 'città' : 'città'} da trovare sulla carta` },
+  { id: 'regioneDi', sez: 'italia', ent: 'citta', nome: 'In quale regione si trova la città?', breve: 'Città e regioni', frase: n => `${n} ${n === 1 ? 'città' : 'città'} da collocare nella sua regione` },
   { id: 'ue', sez: 'europa', nome: 'È nell\'Unione europea?', breve: 'UE', frase: n => `${n} ${n === 1 ? 'domanda' : 'domande'} sull'Unione europea` },
   { id: 'continente', sez: 'mondo', nome: 'In quale continente si trova?', breve: 'Continenti', frase: n => `${n} ${n === 1 ? 'Stato' : 'Stati'} da collocare in un continente` },
 ];
-const verTipi = () => VER_TIPI.filter(t => !t.sez || t.sez === SZ.id);
+const verTipi = () => VER_TIPI.filter(t => !t.sez || t.sez === SZ.id).map(t => (ITA() && t.it ? { ...t, ...t.it } : t));
+const verTipo = id => verTipi().find(t => t.id === id) || VER_TIPI.find(t => t.id === id);
+// voci della lista «stati» su cui si può fare una domanda di questo tipo
+const statiPerTipo = (t, stati) => (t.ent ? stati.filter(id => citta(id) === (t.ent === 'citta')) : stati);
 const VER_EXTRA = ['NOR', 'ISL', 'GBR', 'UKR'];
 // verifica predefinita (per allenarsi senza codice): Europa = fisica del livello Facile, Stati UE (senza Malta) + Norvegia, Islanda, Regno Unito, Ucraina;
 // Mondo = elementi fisici e Stati del livello Facile. I livelli degli elementi fisici si leggono al momento: vengono dai dati della sezione, applicati in impostaSezione()
-const verDefault = () => SZ.id === 'mondo'
+const verDefault = () => ITA()
+  ? { v: 2, sez: 'italia', titolo: '', parti: { fisica: 7, trovaFis: 4, trova: 5, indovina: 0, capitali: 5, trovaCitta: 4, regioneDi: 0 },
+    stati: P.filter(p => p.liv === 1).map(p => p.id), fisici: F.filter(f => f.liv === 1).map(f => f.id), agg: 0 }
+  : SZ.id === 'mondo'
   ? { v: 2, sez: 'mondo', titolo: '', parti: { fisica: 8, trovaFis: 0, trova: 6, indovina: 0, capitali: 0, continente: 4 },
     stati: P.filter(p => p.liv === 1 && !MICRO.includes(p.id)).map(p => p.id), fisici: F.filter(f => f.liv === 1).map(f => f.id), agg: 0 }
   : { v: 2, sez: 'europa', titolo: '', parti: { fisica: 13, trovaFis: 0, trova: 7, indovina: 0, capitali: 0, ue: 5 },
@@ -1236,7 +1351,7 @@ const contGiusti = id => [...new Set([per[id].area, ...(per[id].alt || [])])];
 // solo id che esistono ancora nei dati, e numeri di domande che ci stanno
 function verNormalizza(c) {
   const stati = (c.stati || []).filter(id => per[id]), fisici = (c.fisici || []).filter(id => fis[id]), parti = {};
-  verTipi().forEach(t => { parti[t.id] = Math.min(Math.max(0, +c.parti[t.id] || 0), t.fis ? fisici.length : stati.length); });
+  verTipi().forEach(t => { parti[t.id] = Math.min(Math.max(0, +c.parti[t.id] || 0), t.fis ? fisici.length : statiPerTipo(t, stati).length); });
   if (parti.ue) parti.ue = Math.min(parti.ue, stati.length);
   return { ...c, stati, fisici, parti };
 }
@@ -1258,9 +1373,12 @@ function avviaVerifica(cfgIn, opz = {}) {
   const aggiungi = (tipo, ids) => ids.forEach(id => coda.push({ tipo, id }));
   aggiungi('fisica', prendi(cfg.fisici, P_.fisica, usatiF));
   aggiungi('trovaFis', prendi(cfg.fisici, P_.trovaFis, usatiF));
-  aggiungi('trova', prendi(cfg.stati, P_.trova, usatiS));
-  aggiungi('indovina', prendi(cfg.stati, P_.indovina, usatiS));
-  aggiungi('capitali', prendi(cfg.stati, P_.capitali, usatiS));
+  const st = id => statiPerTipo(verTipo(id), cfg.stati);
+  aggiungi('trova', prendi(st('trova'), P_.trova, usatiS));
+  aggiungi('indovina', prendi(st('indovina'), P_.indovina, usatiS));
+  aggiungi('capitali', prendi(st('capitali'), P_.capitali, usatiS));
+  if (P_.trovaCitta) aggiungi('trovaCitta', prendi(st('trovaCitta'), P_.trovaCitta, usatiS));
+  if (P_.regioneDi) aggiungi('regioneDi', prendi(st('regioneDi'), P_.regioneDi, usatiS));
   if (P_.ue) { // UE: un po' di Stati fuori dall'UE (se ce ne sono), così la risposta non è sempre «sì»
     const fuori = cfg.stati.filter(id => !per[id].ue), dentro = cfg.stati.filter(id => per[id].ue);
     const nFuori = Math.min(fuori.length, Math.max(1, Math.round(P_.ue * (0.25 + Math.random() * 0.3))), P_.ue);
@@ -1272,6 +1390,10 @@ function avviaVerifica(cfgIn, opz = {}) {
   S = { gioco: 'verifica', modo: 'verifica', cats: [], liv: 1, pool: [], cfg, i: 0, punti: 0, errori: [], t0: Date.now(), blocca: false, tent: 0, serie: 0, serieMax: 0, xp: 0, esiti: [],
     verifica: true, prova, codice: opz.codice || null, coda, risposte: [], mappa: null,
     clicStati: P.filter(p => !MICRO.includes(p.id) || cfg.stati.includes(p.id)).map(p => p.id) };
+  if (ITA()) { // regioni e capoluoghi su due carte diverse; si vedono i capoluoghi fino al livello più alto tra quelli della verifica
+    const livMax = Math.max(1, ...cfg.stati.filter(citta).map(id => per[id].liv));
+    S.clicStati = P.filter(p => !p.citta).map(p => p.id); S.clicCitta = P.filter(p => p.citta && p.liv <= livMax).map(p => p.id);
+  }
   $('hudNome').textContent = prova ? 'Anteprima della verifica' : (cfg.titolo || 'Simulazione della verifica');
   $('hudSub').textContent = `${SZ.nome} · ${coda.length} domande`;
   $('hudPods').hidden = false; $('stat').textContent = '';
@@ -1281,11 +1403,11 @@ function avviaVerifica(cfgIn, opz = {}) {
   timer = setInterval(aggiornaStat, 1000);
   domandaVerifica();
 }
-// cambia cartina solo quando si passa dalla geografia fisica a quella politica
+// cambia cartina solo quando si passa dalla geografia fisica a quella politica (in Italia anche tra regioni e capoluoghi)
 function mappaVerifica(m) {
   if (S.mappa === m) return;
-  S.mappa = m; modoAttivo = m;
-  impostaPool(m === 'fisico' ? S.cfg.fisici : S.clicStati, m);
+  S.mappa = m; modoAttivo = m === 'fisico' ? 'fisico' : 'stati';
+  impostaPool(m === 'fisico' ? S.cfg.fisici : m === 'citta' ? S.clicCitta : S.clicStati, modoAttivo);
 }
 function domandaVerifica() {
   if (S.i >= S.coda.length) return finisciVerifica();
@@ -1299,7 +1421,7 @@ function domandaVerifica() {
   conferma.onclick = () => {
     if (scelta === null || S.blocca) return;
     S.blocca = true; S.risposte[S.i] = scelta;
-    S.esiti[S.i] = tipo === 'ue' ? scelta === per[id].ue : tipo === 'continente' ? contGiusti(id).includes(scelta) : scelta === id;
+    S.esiti[S.i] = tipo === 'ue' ? scelta === per[id].ue : tipo === 'continente' ? contGiusti(id).includes(scelta) : tipo === 'regioneDi' ? scelta === per[id].reg : scelta === id;
     S.i++; domandaVerifica();
   };
   const scegliUna = opz => {
@@ -1312,15 +1434,15 @@ function domandaVerifica() {
     $('pannello').appendChild(box);
   };
   // clic sulla mappa: si sceglie (e si può cambiare) finché non si conferma; il nome di ciò che si clicca non viene mostrato
-  const cliccaSullaMappa = cosa => {
+  const cliccaSullaMappa = (cosa, f = false) => { // f: nome femminile (regione, città)
     svg.parentElement.classList.add('interattivo');
-    const msg = document.createElement('div'); msg.className = 'msg'; msg.textContent = `Nessun ${cosa} selezionato.`;
+    const msg = document.createElement('div'); msg.className = 'msg'; msg.textContent = `${f ? 'Nessuna' : 'Nessun'} ${cosa} ${f ? 'selezionata' : 'selezionato'}.`;
     $('pannello').appendChild(msg);
     sulClic = cl => {
       if (S.blocca) return;
       if (scelta) statoClasse(scelta, 'sel', false);
       scelta = cl; statoClasse(cl, 'sel'); conferma.disabled = false;
-      msg.textContent = `${cosa[0].toUpperCase() + cosa.slice(1)} selezionato (in azzurro). Conferma o clicca altrove per cambiare.`;
+      msg.textContent = `${cosa[0].toUpperCase() + cosa.slice(1)} ${f ? 'selezionata' : 'selezionato'} (in azzurro). Conferma o clicca altrove per cambiare.`;
     };
   };
   const tipiFis = S.coda.some(q => VER_TIPI.find(t => t.id === q.tipo).fis), tipiPol = S.coda.some(q => !VER_TIPI.find(t => t.id === q.tipo).fis);
@@ -1334,6 +1456,7 @@ function domandaVerifica() {
     const f = fis[id], cf = cat(f.cat), dist = x => Math.hypot(f.c[0] - x.c[0], f.c[1] - x.c[1]);
     const altri = F.filter(x => x.id !== id && (x.liv <= Math.max(f.liv, 1) || S.cfg.fisici.includes(x.id)));
     let cand = altri.filter(x => x.cat === f.cat).sort((x, y) => dist(x) - dist(y)).slice(0, 9);
+    if (cand.length < 3) cand = cand.concat(F.filter(x => x.id !== id && x.cat === f.cat && !cand.includes(x)).sort((x, y) => dist(x) - dist(y)).slice(0, 3 - cand.length));
     if (cand.length < 3) cand = cand.concat(mescola(altri.filter(x => x.cat !== f.cat)).slice(0, 3 - cand.length));
     $('domanda').innerHTML = `${parte}${cf.q}<small>Riconosci l'elemento evidenziato sulla carta fisica.</small>`;
     scegliUna(mescola([f, ...mescola(cand).slice(0, 3)]).map(o => ({ testo: o.nome, v: o.id })));
@@ -1344,16 +1467,26 @@ function domandaVerifica() {
     cliccaSullaMappa('elemento');
   } else if (tipo === 'trova') {
     mappaVerifica('stati'); vistaIntera();
-    $('domanda').innerHTML = `${parte}Trova sulla carta: <b>${nome(id)}</b><small>Clicca lo Stato, poi conferma. Finché non confermi puoi cambiare idea.</small>`;
-    cliccaSullaMappa('Stato');
+    $('domanda').innerHTML = `${parte}Trova sulla carta: <b>${nome(id)}</b><small>Clicca ${ITA() ? 'la regione' : 'lo Stato'}, poi conferma. Finché non confermi puoi cambiare idea.</small>`;
+    cliccaSullaMappa(ITA() ? 'regione' : 'Stato', ITA());
+  } else if (tipo === 'trovaCitta') {
+    mappaVerifica('citta'); vistaIntera();
+    $('domanda').innerHTML = `${parte}Trova sulla carta: <b>${nome(id)}</b> <span class="tipo">(città)</span><small>Clicca il punto della città, poi conferma. Puoi ingrandire la mappa.</small>`;
+    cliccaSullaMappa('città', true);
   } else if (tipo === 'indovina') {
     mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
-    $('domanda').innerHTML = `${parte}Quale Stato è evidenziato?`;
+    $('domanda').innerHTML = `${parte}${ITA() ? 'Quale regione è evidenziata?' : 'Quale Stato è evidenziato?'}`;
     scegliUna(mescola([per[id], ...mescola(vicini()).slice(0, 3)]).map(o => ({ testo: o.nome, v: o.id })));
   } else if (tipo === 'capitali') {
     mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
-    $('domanda').innerHTML = `${parte}<b>${nome(id)}</b> (evidenziato): qual è la capitale?`;
+    $('domanda').innerHTML = `${parte}<b>${nome(id)}</b> ${ITA() ? '(evidenziata): qual è il capoluogo di regione?' : '(evidenziato): qual è la capitale?'}`;
     scegliUna(mescola([per[id], ...mescola(vicini()).slice(0, 3)]).map(o => ({ testo: o.cap, v: o.id })));
+  } else if (tipo === 'regioneDi') {
+    mappaVerifica('citta'); statoClasse(id, 'evidenzia'); vaiA(id);
+    const p = per[id], a = E.centri[id];
+    const vicine = P.filter(r => !r.citta && r.id !== p.reg).map(r => ({ r, d: Math.hypot(E.centri[r.id][0] - a[0], E.centri[r.id][1] - a[1]) })).sort((x, y) => x.d - y.d).slice(0, 5).map(o => o.r);
+    $('domanda').innerHTML = `${parte}<b>${p.nome}</b> (evidenziata): in quale regione si trova?`;
+    scegliUna(mescola([per[p.reg], ...mescola(vicine).slice(0, 3)]).map(o => ({ testo: o.nome, v: o.id })));
   } else if (tipo === 'continente') {
     mappaVerifica('stati'); statoClasse(id, 'evidenzia'); vaiA(id);
     $('domanda').innerHTML = `${parte}<b>${nome(id)}</b> (evidenziato): in quale continente si trova?`;
@@ -1371,7 +1504,7 @@ function finisciVerifica() {
   const righe = S.coda.map((q, k) => ({ ...q, r: S.risposte[k], ok: S.esiti[k] }));
   const tot = righe.length, punti = righe.filter(q => q.ok).length, perc = Math.round(100 * punti / tot);
   const voto = votoDa(punti / tot), sec = Math.floor((Date.now() - S.t0) / 1000);
-  const chiaveTipo = { trova: '', fisica: '', trovaFis: '', indovina: '', capitali: '|cap', ue: '|ue', continente: '|area' };
+  const chiaveTipo = { trova: '', fisica: '', trovaFis: '', indovina: '', capitali: '|cap', ue: '|ue', continente: '|area', trovaCitta: '', regioneDi: '|reg' };
   let serie = 0;
   righe.forEach(q => {
     const ch = q.id + chiaveTipo[q.tipo];
@@ -1396,9 +1529,10 @@ function finisciVerifica() {
     const q = righe.filter(x => x.tipo === t.id), g = q.filter(x => x.ok).length;
     return `<div><span class="hud-lbl">${t.breve}</span><b>${g}<span class="su">/${q.length}</span></b></div>`;
   }).join('');
-  const testoDom = q => ({ fisica: () => cat(fis[q.id].cat).q, trovaFis: () => `Trova: <b>${nome(q.id)}</b>`, trova: () => `Trova: <b>${nome(q.id)}</b>`,
-    indovina: () => 'Quale Stato è evidenziato?', capitali: () => `<b>${nome(q.id)}</b>: qual è la capitale?`, continente: () => `<b>${nome(q.id)}</b>: in quale continente si trova?`, ue: () => `<b>${nome(q.id)}</b> è nell'UE?` })[q.tipo]();
-  const giusta = q => q.tipo === 'continente' ? contGiusti(q.id).join(' / ') : q.tipo === 'capitali' ? per[q.id].cap : q.tipo === 'ue' ? (per[q.id].ue ? 'Sì' : 'No') : nome(q.id);
+  const testoDom = q => ({ fisica: () => cat(fis[q.id].cat).q, trovaFis: () => `Trova: <b>${nome(q.id)}</b>`, trova: () => `Trova: <b>${nome(q.id)}</b>`, trovaCitta: () => `Trova: <b>${nome(q.id)}</b>`,
+    indovina: () => ITA() ? 'Quale regione è evidenziata?' : 'Quale Stato è evidenziato?', capitali: () => `<b>${nome(q.id)}</b>: qual è ${ITA() ? 'il capoluogo' : 'la capitale'}?`,
+    regioneDi: () => `<b>${nome(q.id)}</b>: in quale regione si trova?`, continente: () => `<b>${nome(q.id)}</b>: in quale continente si trova?`, ue: () => `<b>${nome(q.id)}</b> è nell'UE?` })[q.tipo]();
+  const giusta = q => q.tipo === 'continente' ? contGiusti(q.id).join(' / ') : q.tipo === 'capitali' ? per[q.id].cap : q.tipo === 'ue' ? (per[q.id].ue ? 'Sì' : 'No') : q.tipo === 'regioneDi' ? per[per[q.id].reg].nome : nome(q.id);
   const tua = q => q.tipo === 'continente' ? q.r : q.tipo === 'capitali' ? per[q.r].cap : q.tipo === 'ue' ? (q.r ? 'Sì' : 'No') : per[q.r] ? per[q.r].nome : fis[q.r] ? fis[q.r].nome : q.r;
   const correzione = righe.map((q, k) => `<li class="${q.ok ? 'ok' : 'ko'}"><span class="n">${k + 1}</span><span class="cr-testo">${testoDom(q)}
     <small>${q.ok ? `Risposta: ${giusta(q)}` : `Hai risposto: ${tua(q)} · Giusta: <b>${giusta(q)}</b>`}</small></span></li>`).join('');
@@ -1431,7 +1565,7 @@ function finisciVerifica() {
       <div class="azioni-fine">
         <button class="primario" id="ancora">${icona('ricarica')}${prova ? 'Rifai l\'anteprima' : 'Rifai la verifica'}</button>
         ${prova ? '<button class="secondario" id="tornaPrepara">Torna a «Prepara la verifica»</button>' : ''}
-        ${!prova && errStati.length ? '<button class="secondario rosso" id="ripStati">Ripassa gli Stati sbagliati</button>' : ''}
+        ${!prova && errStati.length ? `<button class="secondario rosso" id="ripStati">${ITA() ? 'Ripassa regioni e città sbagliate' : 'Ripassa gli Stati sbagliati'}</button>` : ''}
         ${!prova && errFis.length ? '<button class="secondario rosso" id="ripFis">Ripassa gli elementi sbagliati</button>' : ''}
         <button class="secondario" id="menu">Menu</button>
       </div>
@@ -1471,7 +1605,7 @@ function disegnaPrepara(avvisoHtml, mostraCodice) {
           <h2 id="tNuova">Nuova verifica</h2>
           <form class="prep-form" id="formNuova">
             <span class="hud-lbl">Di quale sezione?</span>
-            <div class="seg" role="group" aria-label="Sezione della verifica">${['europa', 'mondo'].map(id => `<button type="button" data-sezn="${id}" aria-pressed="${id === sezNuova}">${SEZIONI[id].nome} · ${SEZIONI[id].classe.toLowerCase()}</button>`).join('')}</div>
+            <div class="seg" role="group" aria-label="Sezione della verifica">${['italia', 'europa', 'mondo'].map(id => `<button type="button" data-sezn="${id}" aria-pressed="${id === sezNuova}">${SEZIONI[id].nome} · ${SEZIONI[id].classe.toLowerCase()}</button>`).join('')}</div>
             <label><span class="hud-lbl">Password degli insegnanti</span><input id="passDocenti" type="password" autocomplete="current-password" aria-label="Password degli insegnanti"></label>
             <button class="primario" type="submit">Continua</button>
             <p class="nota" id="esitoNuova" role="status"></p>
@@ -1513,16 +1647,19 @@ function disegnaPrepara(avvisoHtml, mostraCodice) {
     $('passDocenti').focus();
     return;
   }
-  const c = bozza, nS = c.stati.length, nF = c.fisici.length, tot = verTot(verNormalizza(c)), mondo = SZ.id === 'mondo', nuova = verSess.nuova;
-  const max = t => t.fis ? nF : nS;
+  const c = bozza, nS = c.stati.length, nF = c.fisici.length, tot = verTot(verNormalizza(c)), mondo = SZ.id !== 'europa', nuova = verSess.nuova;
+  const max = t => t.fis ? nF : statiPerTipo(t, c.stati).length;
   const tipiHtml = verTipi().map(t => `<label class="prep-tipo"><span><b>${t.nome}</b><small>${t.fis ? 'Geografia fisica' : 'Geografia politica'} · massimo ${max(t)}</small></span>
     <input type="number" min="0" max="${max(t)}" step="1" inputmode="numeric" data-tipo="${t.id}" value="${c.parti[t.id] || 0}" aria-label="${t.nome}: numero di domande"></label>`).join('');
   const statiOrd = P.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'it'));
   const chipStato = p => `<button class="chip piccolo" data-stato="${p.id}" aria-pressed="${c.stati.includes(p.id)}">${p.nome}${p.ue ? '<span class="n">UE</span>' : mondo ? `<span class="n">${'●'.repeat(p.liv)}</span>` : ''}</button>`;
+  // gruppi di chip: Mondo per continente; Italia prima le regioni, poi i capoluoghi divisi per area
+  const gruppi = ITA() ? ['Regioni', ...SZ.aree] : SZ.aree;
+  const inGruppo = (p, k) => ITA() ? (k === 'Regioni' ? !p.citta : p.citta && p.area === k) : p.area === k;
   const statiHtml = mondo
-    ? SZ.aree.map(k => {
-      const el = statiOrd.filter(p => p.area === k), n = el.filter(p => c.stati.includes(p.id)).length;
-      return `<details class="prep-cat"><summary><b>${k}</b><span class="hud-lbl">${n} / ${el.length}</span></summary>
+    ? gruppi.map(k => {
+      const el = statiOrd.filter(p => inGruppo(p, k)), n = el.filter(p => c.stati.includes(p.id)).length;
+      return `<details class="prep-cat"><summary><b>${ITA() && k !== 'Regioni' ? 'Capoluoghi · ' + k : k}</b><span class="hud-lbl">${n} / ${el.length}</span></summary>
         <div class="chips">${el.map(chipStato).join('')}</div>
         <div class="azioni-riga"><button class="btn-testo" data-contTutti="${k}">Tutti</button><button class="btn-testo" data-contNessuno="${k}">Nessuno</button></div></details>`;
     }).join('')
@@ -1560,7 +1697,7 @@ function disegnaPrepara(avvisoHtml, mostraCodice) {
       <span class="hud-lbl">${nuova ? 'Nuova verifica · ' + SZ.nome : `Verifica ${verSess.codice} · ${SZ.nome}${agg ? ' · salvata il ' + agg : ''}`}</span></div>
     ${codiceSalvato}
     <h1>${nuova ? 'Prepara la verifica' : 'Modifica la verifica'}</h1>
-    <p class="nota">${nuova ? 'Scegli quante domande fare, su quali Stati e su quali elementi fisici. Con «Prova» la fai tu, senza salvarla.' : 'Le modifiche valgono per gli studenti solo dopo «Salva le modifiche». Con «Prova» la fai tu, senza salvarla.'}</p>
+    <p class="nota">${nuova ? `Scegli quante domande fare, su quali ${ITA() ? 'regioni e città' : 'Stati'} e su quali elementi fisici. Con «Prova» la fai tu, senza salvarla.` : 'Le modifiche valgono per gli studenti solo dopo «Salva le modifiche». Con «Prova» la fai tu, senza salvarla.'}</p>
     <div class="prep-griglia">
       <section class="riquadro" aria-labelledby="tTipi">
         <div class="riq-testa"><h2 id="tTipi">Domande</h2><span class="hud-lbl" id="prepTot">Totale ${tot}</span></div>
@@ -1569,7 +1706,7 @@ function disegnaPrepara(avvisoHtml, mostraCodice) {
         <p class="nota">Metti 0 per togliere un tipo di domanda. Le domande di geografia fisica vengono prima, poi quelle di politica.</p>
       </section>
       <section class="riquadro" aria-labelledby="tStati">
-        <div class="riq-testa"><h2 id="tStati">Stati</h2><span class="hud-lbl">${nS} scelti${mondo ? ' · ● facile ●● medio ●●● difficile' : ''}</span></div>
+        <div class="riq-testa"><h2 id="tStati">${ITA() ? 'Regioni e città' : 'Stati'}</h2><span class="hud-lbl">${nS} scelti${mondo ? ' · ● facile ●● medio ●●● difficile' : ''}</span></div>
         <div class="azioni-riga prep-rapidi">${rapidiStati}</div>
         ${statiHtml}
       </section>
@@ -1607,8 +1744,8 @@ function disegnaPrepara(avvisoHtml, mostraCodice) {
   box.querySelectorAll('[data-fis]').forEach(b => b.onclick = () => { c.fisici = alterna(c.fisici, b.dataset.fis); ridisegna(); });
   box.querySelectorAll('[data-cattutti]').forEach(b => b.onclick = () => { c.fisici = [...new Set([...c.fisici, ...F.filter(f => f.cat === b.dataset.cattutti).map(f => f.id)])]; ridisegna(); });
   box.querySelectorAll('[data-catnessuno]').forEach(b => b.onclick = () => { c.fisici = c.fisici.filter(id => fis[id].cat !== b.dataset.catnessuno); ridisegna(); });
-  box.querySelectorAll('[data-conttutti]').forEach(b => b.onclick = () => { c.stati = [...new Set([...c.stati, ...P.filter(p => p.area === b.dataset.conttutti).map(p => p.id)])]; ridisegna(); });
-  box.querySelectorAll('[data-contnessuno]').forEach(b => b.onclick = () => { c.stati = c.stati.filter(id => per[id].area !== b.dataset.contnessuno); ridisegna(); });
+  box.querySelectorAll('[data-conttutti]').forEach(b => b.onclick = () => { c.stati = [...new Set([...c.stati, ...P.filter(p => inGruppo(p, b.dataset.conttutti)).map(p => p.id)])]; ridisegna(); });
+  box.querySelectorAll('[data-contnessuno]').forEach(b => b.onclick = () => { c.stati = c.stati.filter(id => !inGruppo(per[id], b.dataset.contnessuno)); ridisegna(); });
   box.querySelectorAll('[data-sliv]').forEach(b => b.onclick = () => { c.stati = P.filter(p => p.liv <= +b.dataset.sliv).map(p => p.id); ridisegna(); });
   box.querySelectorAll('[data-liv]').forEach(b => b.onclick = () => { c.fisici = F.filter(f => f.liv <= +b.dataset.liv).map(f => f.id); ridisegna(); });
   if (!mondo) {
@@ -1672,7 +1809,7 @@ function controllaMedaglie({ perc, stelle, tot, xp }) {
   if (S.gioco === 'coloraUE' && perc === 100 && !S.errori.length) sb('ue');
   if (S.gioco === 'coloraCont' && perc === 100 && !S.errori.length) sb('continente');
   if (S.modo === 'fisico' && stelle === 3) sb('fisico');
-  if (mp.get('sess', []).length + mp.get('sess_m', []).length >= 25) sb('maratona');
+  if (mp.get('sess', []).length + mp.get('sess_m', []).length + mp.get('sess_i', []).length >= 25) sb('maratona');
   const giocati = new Set(mp.get(kSess(), []).map(x => x.g + '|' + x.m));
   if (GIOCHI.filter(g => g.sez.includes(SZ.id) && g.punti !== false).every(g => giocati.has(g.id + '|' + g.modo))) sb('tutti');
   if (livDa(xp) >= 10) sb('liv10');
@@ -1680,7 +1817,7 @@ function controllaMedaglie({ perc, stelle, tot, xp }) {
 }
 function finisci() {
   clearInterval(timer);
-  const g = GIOCHI.find(x => x.id === S.gioco && x.modo === S.modo), tot = S.totale || S.coda.length;
+  const g = giocoDi(S.gioco, S.modo), tot = S.totale || S.coda.length;
   const pt = Math.round(S.punti * 10) / 10;
   const perc = Math.round(100 * S.punti / tot), sec = Math.floor((Date.now() - S.t0) / 1000);
   const chiave = chiaveRec(S.gioco, S.modo, S.liv, S.cats), rec = mp.get(chiave, null);
@@ -1759,7 +1896,7 @@ function disegnaProgressi() {
   const tempoTxt = tempoTot >= 60 ? `${Math.floor(tempoTot / 60)}h ${tempoTot % 60}m` : `${tempoTot} min`;
   const ultime20 = sess.slice(-20);
   const barre = ultime20.map(x => {
-    const gioco = (GIOCHI.find(g => g.id === x.g && g.modo === x.m) || {}).nome || x.g;
+    const gioco = (giocoDi(x.g, x.m) || {}).nome || x.g;
     const dt = new Date(x.t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     return `<div class="barra-col" title="${dt} · ${gioco} · ${x.p}%"><div class="barra-v ${x.p >= 80 ? 'alto' : x.p >= 60 ? 'medio' : 'basso'}" style="height:${Math.max(x.p, 3)}%"></div></div>`;
   }).join('');
@@ -1777,7 +1914,7 @@ function disegnaProgressi() {
   const daStati = dachi.filter(i => per[i]), daFis = dachi.filter(i => fis[i]);
   const l = infoLiv(xpTot()), med = medOttenute(), nMed = MEDAGLIE.filter(m => med[m.id]).length;
   box.innerHTML = `<div class="prog-barra"><button class="btn-testo" id="progIndietro">${icona('freccia')}Menu</button>
-      <div class="seg" role="group" aria-label="Sezione">${['europa', 'mondo'].map(id => `<button data-sez="${id}" aria-pressed="${id === SZ.id}">${SEZIONI[id].nome}</button>`).join('')}</div></div>
+      <div class="seg" role="group" aria-label="Sezione">${['italia', 'europa', 'mondo'].map(id => `<button data-sez="${id}" aria-pressed="${id === SZ.id}">${SEZIONI[id].nome}</button>`).join('')}</div></div>
     <section class="profilo-testa" aria-labelledby="tProf">
       <span class="avatar">${profilo.trim()[0] || '?'}</span>
       <div class="profilo-info">
@@ -1805,13 +1942,13 @@ function disegnaProgressi() {
           <div class="medaglie">${MEDAGLIE.map(m => medagliaHtml(m, !!med[m.id])).join('')}</div></section>
         <section class="riquadro" aria-labelledby="tErr"><h2 id="tErr">Errori ricorrenti</h2>${tabErr}
           <div class="azioni-riga" style="margin-top:14px">
-            ${daStati.length ? '<button class="secondario rosso" id="allenaStati">Allena gli Stati sbagliati</button>' : ''}
+            ${daStati.length ? `<button class="secondario rosso" id="allenaStati">${ITA() ? 'Allena regioni e città sbagliate' : 'Allena gli Stati sbagliati'}</button>` : ''}
             ${daFis.length ? '<button class="secondario rosso" id="allenaFis">Allena gli elementi fisici sbagliati</button>' : ''}
           </div></section>
       </div>
     </div>
     <section class="riquadro gestione" aria-labelledby="tGest"><h2 id="tGest">Gestione dati</h2>
-      <p class="nota">I progressi sono salvati su questo dispositivo, nel profilo «${profilo}». Se cancelli i dati del browser si perdono. Qui sopra vedi le statistiche della sezione ${SZ.nome}; esperienza e medaglie valgono per tutte e due le sezioni.</p>
+      <p class="nota">I progressi sono salvati su questo dispositivo, nel profilo «${profilo}». Se cancelli i dati del browser si perdono. Qui sopra vedi le statistiche della sezione ${SZ.nome}; esperienza e medaglie valgono per tutte le sezioni.</p>
       <div class="azioni"><button class="secondario" id="copiaCsv">Copia il riepilogo</button><button class="secondario" id="azzera">Azzera i progressi di ${profilo} (${SZ.nome})</button></div>
       <p class="nota" id="esitoCopia"></p><textarea id="areaCsv" class="area-csv" rows="6" readonly hidden aria-label="Riepilogo da copiare"></textarea>
     </section>`;

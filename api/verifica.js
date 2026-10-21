@@ -10,8 +10,8 @@ const crypto = require('crypto');
 
 const URL_DB = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const TOKEN_DB = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const TIPI = ['fisica', 'trovaFis', 'trova', 'indovina', 'capitali', 'ue', 'continente'];
-const SEZIONI = ['europa', 'mondo'];
+const TIPI = ['fisica', 'trovaFis', 'trova', 'indovina', 'capitali', 'ue', 'continente', 'trovaCitta', 'regioneDi'];
+const SEZIONI = ['italia', 'europa', 'mondo'];
 const ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // senza lettere e cifre che si confondono (I, L, O, 0, 1)
 const chiave = codice => 'verifica:' + codice;
 

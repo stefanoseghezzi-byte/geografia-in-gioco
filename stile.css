@@ -115,7 +115,7 @@ footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--bordo)
 .hero-testo b { color: var(--testo); font-weight: 600; }
 .hero-azioni { display: flex; gap: 12px; flex-wrap: wrap; }
 .hero-azioni .primario, .hero-azioni .secondario { margin-top: 4px; min-height: 56px; }
-.sezioni { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sezioni { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .sez-btn { position: relative; aspect-ratio: 4 / 4.6; padding: 0; border-radius: 22px; overflow: hidden; border: 3px solid var(--bordo); background: var(--scheda); text-align: left; transition: border-color .15s, transform .15s, box-shadow .15s; }
 .sez-btn img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5; transition: opacity .2s, transform .4s; }
 .sez-btn:hover img { opacity: .8; transform: scale(1.03); }
@@ -408,7 +408,9 @@ footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--bordo)
   .logo { font-size: 1.05rem; } .logo .lbl-logo { display: none; }
   .btn-strum .lbl { display: none; }
   .cp-testo { min-width: 0; } .cp-testo .xpbar { width: 64px; } .cp-nome { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sez-btn { aspect-ratio: 4 / 3.4; } .sez-btn .sez-dida b { font-size: 1.2rem; }
+  .sezioni { gap: 10px; }
+  .sez-btn { aspect-ratio: 4 / 4.6; border-radius: 16px; } .sez-btn .sez-dida { padding: 8px 10px; } .sez-btn .sez-dida b { font-size: 1.1rem; } .sez-btn .sez-dida small { font-size: .6rem; letter-spacing: .08em; }
+  .sez-btn .sez-ok { top: 6px; right: 6px; padding: 4px; font-size: 0; gap: 0; } /* solo la spunta */
   .hud { gap: 10px; padding: 10px; } .hud-titolo { min-width: 0; flex: 1; } .hud-centro { order: 3; flex-basis: 100%; }
   .pod { height: 44px; padding: 0 10px; } .pod b { font-size: 1.05rem; } .pod.xp { display: none; }
   .domanda { font-size: 1.2rem; padding: 16px; }
@@ -429,6 +431,12 @@ footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--bordo)
 .attiva.pol-3, .marker.pol-3 { fill: var(--p3); } .attiva.pol-4, .marker.pol-4 { fill: var(--p4); } .attiva.pol-5, .marker.pol-5 { fill: var(--p5); }
 .terra.micro { pointer-events: none; }
 .marker { fill: var(--terra); stroke: var(--confine); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+/* Italia: capoluoghi (punti bianchi, più marcati quelli di regione) e regioni colorate ma non cliccabili nei giochi sulle città */
+.marker.citta { fill: #fff; stroke: #1b2433; stroke-width: 1.6; }
+.marker.citta.capr { stroke-width: 2.6; }
+.terra.sfondo { fill-opacity: .55; pointer-events: none; }
+.terra.sfondo.pol-0 { fill: var(--p0); } .terra.sfondo.pol-1 { fill: var(--p1); } .terra.sfondo.pol-2 { fill: var(--p2); }
+.terra.sfondo.pol-3 { fill: var(--p3); } .terra.sfondo.pol-4 { fill: var(--p4); } .terra.sfondo.pol-5 { fill: var(--p5); }
 .interattivo .attiva:hover, .interattivo .marker:hover { fill: var(--hover); cursor: pointer; }
 .attiva.ue, .marker.ue { fill: var(--ue); }
 .attiva.cont-0, .marker.cont-0 { fill: var(--c0); }
