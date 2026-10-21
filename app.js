@@ -490,7 +490,7 @@ function costruisciMappa() {
       marca(crea('path', { d: f.d }, (f.cat === 'mari' || f.cat === 'stretti') ? gSea : (f.cat === 'penisole' || f.cat === 'isole' || f.cat === 'pianure' || f.cat === 'deserti' || f.cat === 'monti') ? gPen : gPoly, `fis poly cat-${f.cat}`));
       if (f.small) marca(crea('circle', { cx: f.c[0], cy: f.c[1] }, gFMark, 'fmark' + (f.cat === 'laghi' ? ' fmark-lago' : '')));
     } else if (f.tipo === 'line') {
-      marca(crea('path', { d: f.d }, gLines, `fis line cat-${f.cat}`));
+      marca(crea('path', { d: f.d }, gLines, `fis line cat-${f.cat}${f.cat === 'fiumi' && f.liv === 1 ? ' princ' : ''}`));
       marca(crea('path', { d: f.d }, gLines, 'fis hitline'));
       if (f.cat === 'stretti') marca(crea('circle', { cx: f.c[0], cy: f.c[1] }, gFMark, 'fmark'));
     } else {

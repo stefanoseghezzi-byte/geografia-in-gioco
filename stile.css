@@ -643,3 +643,5 @@ svg#mappa .fis.pt.sel { fill: var(--sel); stroke: #04222B; stroke-width: 2; }
 .prep-codice { margin: 16px 0 8px; border-color: var(--oro); display: flex; flex-direction: column; gap: 10px; }
 .codice-grande { font-family: var(--f-hud); font-weight: 800; font-size: clamp(2.2rem, 8vw, 3.4rem); letter-spacing: .16em; color: var(--oro); user-select: all; }
 .prep-codice p { margin: 0; }
+/* Italia: i fiumi principali (livello facile) più spessi, per leggerli sopra la Pianura Padana */
+#gioco.sez-italia .fis.line.cat-fiumi.princ:not(.evidenzia):not(.giusto):not(.sbagliato):not(.manca) { stroke-width: 3.2; }
