@@ -645,3 +645,26 @@ svg#mappa .fis.pt.sel { fill: var(--sel); stroke: #04222B; stroke-width: 2; }
 .prep-codice p { margin: 0; }
 /* Italia: i fiumi principali (livello facile) più spessi, per leggerli sopra la Pianura Padana */
 #gioco.sez-italia .fis.line.cat-fiumi.princ:not(.evidenzia):not(.giusto):not(.sbagliato):not(.manca) { stroke-width: 3.2; }
+
+/* ----- Dove è stata scattata? (foto di un luogo, si clicca sulla mappa) ----- */
+.card-geo { --c: #FFB86B; }
+:root[data-tema="chiaro"] .card-geo { --c: #B8620A; }
+.geo-clic #mappa { cursor: crosshair; }
+.geo-foto { margin: 0; }
+.geo-img { display: block; width: 100%; padding: 0; border: 1px solid var(--bordo); border-radius: 18px; overflow: hidden; background: var(--scheda2); cursor: zoom-in; }
+.geo-img img { display: block; width: 100%; height: auto; max-height: 46vh; object-fit: cover; }
+.geo-foto figcaption, .geo-cred { display: block; margin-top: 6px; font-size: .78rem; line-height: 1.4; color: var(--tenue2); }
+.geo-cred a { color: inherit; }
+.geo-foto + .primario { margin-top: 12px; }
+.geo-dist { display: block; margin-bottom: 6px; font-family: var(--f-hud); }
+.geo { pointer-events: none; }
+.geo circle { stroke: #fff; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.geo .geo-pin { fill: var(--ciano); }
+.geo .geo-vero { fill: var(--verde); }
+.geo .geo-linea { stroke: var(--testo); stroke-width: 2.5; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }
+.geo-lente { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(5, 9, 18, .92); cursor: zoom-out; }
+.geo-lente img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+.geo-chiudi { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--bordo2); background: var(--vetro); color: var(--testo); font-size: 1.1rem; }
+/* su schermi stretti la foto sta sopra la mappa */
+@media (max-width: 1099px) { #gioco.modo-geo .lato { order: -1; } .geo-img img { max-height: 34vh; } }
+@media (max-width: 700px) { #gioco.modo-geo .domanda small { display: none; } .geo-img img { max-height: 28vh; } }

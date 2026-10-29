@@ -2,6 +2,7 @@
 'use strict';
 // Dati della sezione attiva (Europa o Mondo): vengono impostati da impostaSezione()
 let E, P, F, X, per, fis, MICRO = [], SZ;
+let LUO = {};   // luoghi del gioco con le foto (tutte le sezioni): id -> luogo
 const NS = 'http://www.w3.org/2000/svg';
 const $ = id => document.getElementById(id);
 
@@ -26,7 +27,7 @@ const CATS_ITALIA = {
   penisole: { nome: 'Penisole e promontori', sing: 'penisola o promontorio', q: 'Quale penisola (o promontorio) è evidenziata?' },
 };
 const cat = id => CATS.find(c => c.id === id);
-const dato = id => per[id] || fis[id];
+const dato = id => per[id] || fis[id] || LUO[id];
 const nome = id => dato(id).nome;
 const nomeStato = id => (per[id] ? per[id].nome : id);
 const ITA = () => SZ.id === 'italia';
@@ -55,6 +56,7 @@ const GIOCHI = [
   { id: 'regioneDi', ico: '🧭', ic: 'globo', nome: 'In che regione si trova?', desc: 'Un capoluogo è evidenziato: scegli la regione in cui si trova.', modo: 'stati', sez: ['italia'], ent: 'citta' },
   { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi l\'area', desc: 'Seleziona sulla mappa tutte le regioni dell\'Italia settentrionale, centrale o meridionale.', modo: 'stati', sez: ['italia'], ent: 'reg' },
   { id: 'identita', ico: '🪪', ic: 'carta', nome: 'Carta d\'identità', desc: 'Area, abitanti, superficie: quanto conosci le regioni?', modo: 'stati', sez: ['italia'], ent: 'reg' },
+  { id: 'geo', ico: '📷', ic: 'foto', nome: 'Dove è stata scattata?', desc: 'Guarda la foto di un luogo famoso e clicca sulla mappa dove pensi che sia: più ti avvicini, più punti fai.', modo: 'stati', sez: TRE },
   { id: 'continente', ico: '🧭', ic: 'globo', nome: 'In che continente?', desc: 'Uno Stato è evidenziato: scegli il continente in cui si trova.', modo: 'stati', sez: ['mondo'] },
   { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi il continente', desc: 'Seleziona sulla mappa tutti gli Stati di un continente.', modo: 'stati', sez: ['mondo'] },
   { id: 'ue', ico: '🇪🇺', ic: 'bandiera', nome: 'UE o non UE?', desc: 'Lo Stato evidenziato fa parte dell\'Unione europea?', modo: 'stati', sez: ['europa'] },
@@ -104,7 +106,7 @@ function registra(chiave, ok) {
 }
 const baseId = k => k.split('|')[0];
 const etichettaChiave = k => { const [b, t] = k.split('|'); return nome(b) + (t ? ` <small>(${TIPI[t] || t})</small>` : ''); };
-const gruppoChiave = k => { const b = baseId(k); if (k.endsWith('|elementi')) return 'Elementi collegati'; return per[b] ? (ITA() ? (per[b].citta ? 'Capoluoghi' : 'Regioni') : 'Stati') : cat(fis[b].cat).nome; };
+const gruppoChiave = k => { const b = baseId(k); if (k.endsWith('|elementi')) return 'Elementi collegati'; if (LUO[b]) return 'Luoghi nelle foto'; return per[b] ? (ITA() ? (per[b].citta ? 'Capoluoghi' : 'Regioni') : 'Stati') : cat(fis[b].cat).nome; };
 
 // ---------- icone (tratto, colore del testo) ----------
 const ICONE = {
@@ -135,6 +137,7 @@ const ICONE = {
   sole: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   spunta: '<path d="m5 12 5 5 9-10"/>',
   matita: '<path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  foto: '<path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h2l1.5-2h6l1.5 2h2A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.5"/>',
 };
 const icona = (n, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n] || ''}</svg>`;
 const STELLA = '<path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1l-5.7 3.1 1.2-6.3-4.7-4.4 6.4-.8z"/>';
@@ -228,6 +231,7 @@ let sezPronta = null;
 async function impostaSezione(id) {
   const z = SEZIONI[id] || SEZIONI.europa;
   if (z.id === 'mondo') { await carica('dati/mondo.js'); await carica('mondo-paesi.js'); await carica('dati/mondo-fisico.js'); }
+  if (!window.LUOGHI) await carica('dati/luoghi.js');
   if (z.id === 'italia') { await carica('dati/italia.js'); await carica('italia-dati.js'); await carica('dati/italia-fisico.js'); }
   SZ = z; sezione = z.id; mem.set('sez', z.id);
   CATS.forEach((c, i) => Object.assign(c, CATS_BASE[i], z.id === 'italia' ? CATS_ITALIA[c.id] : null));
@@ -251,7 +255,8 @@ async function impostaSezione(id) {
     P.forEach(p => { if (!p.confFatto) { p.conf = (E.conf[p.id] || []).filter(x => nomi[x] && x !== p.id).map(x => nomi[x]); p.confFatto = true; } });
     SZ.aree = window.CONTINENTI;
   }
-  per = Object.fromEntries(P.map(p => [p.id, p])); fis = Object.fromEntries(F.map(f => [f.id, f]));
+  per = Object.fromEntries(P.map(p => [p.id, p])); fis = Object.fromEntries(F.map(f => [f.id, f])); LUO = Object.fromEntries(window.LUOGHI.map(l => [l.id, l]));
+  proj = null;
   if (!SZ.moduli.some(([m, , off]) => m === modo && !off)) { modo = 'stati'; mem.set('modo', modo); }
   cats = mem.get('cats' + SZ.suf, catsSez().map(c => c.id)).filter(c => catsSez().some(x => x.id === c));
   if (!cats.length) cats = catsSez().map(c => c.id);
@@ -531,6 +536,7 @@ const raggioMarker = (c, kk) => c.setAttribute('r', SZ.mk[0] * kk * (c.classList
 function pulisciStati() {
   [...Object.values(elem), ...Object.values(elemF)].forEach(l => l.forEach(e => e.classList.remove('evidenzia', 'sel', 'giusto', 'sbagliato', 'manca', 'ue', ...CLS_CONT)));
   if (ITA()) gMarker.querySelectorAll('circle').forEach(c => raggioMarker(c, Math.max(vb.w / E.W, SZ.mk[1])));
+  if (gGeo) { gGeo.remove(); gGeo = null; }
 }
 
 // zoom e spostamento
@@ -542,6 +548,7 @@ function applicaVista() {
   const kk = Math.max(k, SZ.mk[1]);
   gMarker.querySelectorAll('circle').forEach(c => raggioMarker(c, kk));
   gFMark.querySelectorAll('circle').forEach(c => c.setAttribute('r', (c.classList.contains('fmark-vetta') ? 5 : 10) * kk));
+  if (gGeo) gGeo.querySelectorAll('circle').forEach(c => c.setAttribute('r', 8 * Math.max(k, SZ.mk[1] / 2)));
   gPt.querySelectorAll('path').forEach(t => t.setAttribute('transform', `translate(${t.dataset.x} ${t.dataset.y}) scale(${kk})`));
   if (gArmate) gArmate.querySelectorAll('g').forEach(g => g.setAttribute('transform', `translate(${g.dataset.x} ${g.dataset.y}) scale(${Math.max(k, 0.25)})`));
   const fs = 12 * k * (SZ.fs || 1);   // la carta d'Italia è più piccola sullo schermo: nomi più grandi
@@ -644,9 +651,11 @@ window.addEventListener('pointermove', e => {
 });
 ['pointerup', 'pointercancel'].forEach(t => window.addEventListener(t, e => ptr.delete(e.pointerId)));
 
-let sulClic = null;
+let sulClic = null, sulPunto = null;   // sulPunto: giochi in cui si clicca un punto qualunque della mappa (coordinate SVG)
 svg.addEventListener('click', e => {
-  if (mosso || !sulClic) return;
+  if (mosso) return;
+  if (sulPunto) return sulPunto(aSvg(e.clientX, e.clientY));
+  if (!sulClic) return;
   const el = e.target.closest('[data-id]'); if (!el || !el.matches('.attiva, .marker, .attivo')) return;
   sulClic(el.dataset.id);
 });
@@ -669,9 +678,10 @@ function avvia(gioco, soloIds) {
   $('hudSub').textContent = gioco === 'studio' ? `${SZ.nome} · esplorazione` : `${SZ.nome} · ${LIVELLI[livello - 1].nome}`;
   $('hudPods').hidden = gioco === 'studio' || gioco === 'risiko';
   $('pips').hidden = true; $('progBox').hidden = true; $('stat').textContent = '';
-  vistaIntera(); sulClic = null; etichetteOn = false;
-  svg.parentElement.classList.remove('interattivo');
+  vistaIntera(); sulClic = null; sulPunto = null; etichetteOn = false;
+  svg.parentElement.classList.remove('interattivo', 'geo-clic'); $('gioco').classList.toggle('modo-geo', gioco === 'geo');
   mostra('gioco');
+  if (gioco === 'geo') return avviaGeo(soloIds);
   if (gioco === 'risiko') return avviaRisiko();
   if (gioco === 'legami') return avviaLegami(soloIds);
   if (gioco === 'elementi') return avviaElementi(soloIds);
@@ -742,9 +752,10 @@ document.addEventListener('keydown', e => {
 
 function prossima() {
   if (S.i >= S.coda.length) return finisci();
-  S.blocca = false; S.tent = 0; pulisciStati(); aggiornaStat();
+  S.blocca = false; S.tent = 0; sulPunto = null; pulisciStati(); aggiornaStat();
   const id = S.coda[S.i], g = S.base;
   $('pannello').innerHTML = '';
+  if (g === 'geo') return domandaGeo(id);
   if (g === 'trova') {
     vistaIntera(); svg.parentElement.classList.add('interattivo');
     const cf = fis[id] && cat(fis[id].cat), tipo = cf ? cf.sing : ITA() ? (citta(id) ? 'città' : 'regione') : '';
@@ -854,6 +865,98 @@ function rispondiTrova(id, cl) {
   aggiornaStat();
 }
 function showMsg(html, cls) { $('pannello').innerHTML = `<div class="msg ${cls || ''}">${html}</div>`; }
+
+// ---------- Dove è stata scattata? (come GeoGuessr: una foto, si clicca sulla mappa dove si pensa che sia) ----------
+// punteggio di una risposta: pieno entro r0 km, poi cala con la distanza (a r0 + k km vale circa un terzo); è giusta da 0,5 in su
+const GEO = { italia: { r0: 10, k: 90 }, europa: { r0: 40, k: 350 }, mondo: { r0: 150, k: 1400 } };
+const poolGeo = liv => window.LUOGHI.filter(l => l.sez.includes(SZ.id) && l.liv <= liv);
+let proj = null, gGeo = null;
+// le stesse proiezioni con cui tools/ ha disegnato le carte (proiezione*.mjs), per passare dal punto cliccato a latitudine e longitudine
+function proiezione() {
+  const d3 = window.d3, cornice = (lon, lat) => {
+    const pts = [];
+    for (let x = lon[0]; x <= lon[1]; x += lon[2]) for (const y of [lat[0], lat[1]]) pts.push([x, y]);
+    for (let y = lat[0]; y <= lat[1]; y += lat[2]) for (const x of [lon[0], lon[1]]) pts.push([x, y]);
+    return { type: 'MultiPoint', coordinates: pts };
+  };
+  if (SZ.id === 'italia') return d3.geoConicConformal().rotate([-12.5, 0]).parallels([38, 46]).fitExtent([[0, 0], [E.W, E.H]], cornice([6.3, 18.8, 0.5], [35.4, 47.15, 0.5]));
+  if (SZ.id === 'europa') return d3.geoConicConformal().rotate([-14, 0]).parallels([38, 62]).fitExtent([[0, 0], [E.W, E.H]], cornice([-26, 47, 3], [33, 72, 3]));
+  const bordo = { type: 'MultiPoint', coordinates: [[-180, -58], [180, -58], [-180, 84], [180, 84], [0, 84], [0, -58], [-180, 0], [180, 0], [-180, 30], [180, 30]] };
+  const p = d3.geoNaturalEarth1().fitWidth(E.W, bordo);
+  return p.translate([p.translate()[0], p.translate()[1] - p([0, 84])[1]]);
+}
+const kmTra = ([lon1, lat1], [lon2, lat2]) => { const r = Math.PI / 180, a = Math.sin((lat2 - lat1) * r / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin((lon2 - lon1) * r / 2) ** 2; return 12742 * Math.asin(Math.min(1, Math.sqrt(a))); };
+const fmtKm = d => d < 1 ? 'meno di 1 km' : fmt(Math.round(d)) + ' km';
+const creditoFoto = (l, link) => `Foto: ${link ? `<a href="${l.pag}" target="_blank" rel="noopener">${l.aut}</a>` : l.aut}${l.lic ? ' · ' + l.lic : ''} · Wikimedia Commons`;
+async function avviaGeo(soloIds) {
+  $('domanda').textContent = 'Preparo le foto…'; $('pannello').innerHTML = '';
+  const tok = S;
+  try { await carica('lib/d3-array.min.js'); await carica('lib/d3-geo.min.js'); }
+  catch { $('domanda').textContent = 'Non riesco a caricare il gioco: controlla la connessione e riprova.'; return; }
+  if (S !== tok) return;
+  if (!proj) proj = proiezione();
+  // cartina politica senza nomi (in Italia solo le regioni: i punti delle città sarebbero un aiuto)
+  impostaPool(P.filter(p => !p.citta).map(p => p.id), 'stati'); pulisciStati();
+  S.pool = soloIds ? soloIds.filter(id => LUO[id]) : poolGeo(livello).map(l => l.id);
+  let coda = mescola(S.pool);
+  if (!soloIds && quantita) coda = coda.slice(0, quantita);
+  S.coda = coda;
+  timer = setInterval(aggiornaStat, 1000);
+  prossima();
+}
+function domandaGeo(id) {
+  const l = LUO[id], prossimo = LUO[S.coda[S.i + 1]];
+  if (prossimo) new Image().src = prossimo.foto;   // la foto successiva arriva già scaricata
+  vistaIntera(); svg.parentElement.classList.add('geo-clic');
+  $('domanda').innerHTML = `Dove è stata scattata questa foto?<small>Clicca sulla mappa il punto più vicino possibile, poi conferma. Puoi ingrandire la mappa e toccare la foto per vederla grande.</small>`;
+  const fig = document.createElement('figure'); fig.className = 'geo-foto';
+  fig.innerHTML = `<button type="button" class="geo-img" aria-label="Ingrandisci la foto"><img src="${l.foto}" alt="Foto del luogo da trovare" width="${l.w}" height="${l.h}"></button><figcaption>${creditoFoto(l, false)}</figcaption>`;
+  fig.querySelector('button').onclick = () => lenteFoto(l);
+  const ok = document.createElement('button'); ok.className = 'primario'; ok.disabled = true; ok.innerHTML = 'Clicca prima sulla mappa';
+  $('pannello').append(fig, ok);
+  let punto = null, pin = null;
+  sulPunto = q => {
+    if (S.blocca) return;
+    const ll = proj.invert([q.x, q.y]);
+    if (!ll || !isFinite(ll[0]) || !isFinite(ll[1]) || Math.abs(ll[0]) > 180 || Math.abs(ll[1]) > 90) return;   // fuori dalla carta
+    punto = { x: q.x, y: q.y, ll };
+    if (!gGeo) gGeo = crea('g', {}, svg, 'geo');
+    if (!pin) pin = crea('circle', {}, gGeo, 'geo-pin');
+    pin.setAttribute('cx', q.x); pin.setAttribute('cy', q.y); applicaVista();
+    ok.disabled = false; ok.innerHTML = 'Conferma il punto <span class="tasto">INVIO</span>';
+  };
+  ok.onclick = () => { if (punto && !S.blocca) rispondiGeo(l, punto); };
+}
+function rispondiGeo(l, punto) {
+  S.blocca = true; sulPunto = null; svg.parentElement.classList.remove('geo-clic');
+  const g = GEO[SZ.id], d = kmTra(punto.ll, [l.lon, l.lat]);
+  const f = Math.round(100 * (d <= g.r0 ? 1 : Math.exp(-(d - g.r0) / g.k))) / 100, ok = f >= 0.5;
+  S.punti += f; if (!ok) S.errori.push(l.id);
+  registra(l.id, ok); suono(ok ? 'ok' : 'ko');
+  const bonus = segna(ok, XP_RISPOSTA * f);
+  // il punto giusto e la linea dalla risposta; la vista inquadra entrambi
+  const [vx, vy] = proj([l.lon, l.lat]);
+  crea('line', { x1: punto.x, y1: punto.y, x2: vx, y2: vy }, gGeo, 'geo-linea');
+  gGeo.appendChild(gGeo.querySelector('.geo-pin'));
+  crea('circle', { cx: vx, cy: vy }, gGeo, 'geo-vero');
+  const w = Math.max(SZ.minW * 0.8, Math.abs(vx - punto.x) * 1.6, Math.abs(vy - punto.y) * 1.6 * E.W / E.H);
+  if (w > E.W * 0.8) vistaIntera();
+  else { vb = { x: (vx + punto.x) / 2 - w / 2, y: (vy + punto.y) / 2 - w * E.H / E.W / 2, w, h: w * E.H / E.W }; applicaVista(); }
+  const titolo = f >= 0.9 ? 'Centrato!' : ok ? 'Ci sei quasi!' : f >= 0.2 ? 'Un po\' lontano.' : 'Molto lontano.';
+  const m = document.createElement('div'); m.className = 'msg ' + (ok ? 'ok' : 'ko');
+  m.innerHTML = titoloEsito(titolo, bonus) + `<span class="geo-dist">Eri a <b>${fmtKm(d)}</b> · precisione <b>${Math.round(f * 100)}%</b></span><b>${l.nome}</b> · ${l.dove}. ${l.info}<small class="geo-cred">${creditoFoto(l, true)}</small>`;
+  $('pannello').querySelector('.primario').remove();
+  $('pannello').appendChild(m); avanti(); aggiornaStat();
+}
+// foto a tutto schermo: si chiude toccandola o con Esc
+function lenteFoto(l) {
+  const d = document.createElement('div'); d.className = 'geo-lente'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Foto ingrandita');
+  d.innerHTML = `<img src="${l.foto}" alt="Foto del luogo"><button type="button" class="geo-chiudi" aria-label="Chiudi">✕</button>`;
+  const chiudi = () => { d.remove(); document.removeEventListener('keydown', esc, true); };
+  const esc = e => { if (e.key === 'Escape' || e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); chiudi(); } };
+  d.onclick = chiudi; document.addEventListener('keydown', esc, true);
+  ($('gioco').classList.contains('schermo-intero') ? $('gioco') : document.body).appendChild(d); d.querySelector('button').focus();
+}
 
 // ---------- carta d'identità ----------
 const ruoloCitta = p => `${p.id === 'c_rm' ? 'capitale d\'Italia e capoluogo di regione' : p.capR ? 'capoluogo di regione' : 'capoluogo di provincia'} · ${per[p.reg].nome}`;
@@ -1397,8 +1500,8 @@ function avviaVerifica(cfgIn, opz = {}) {
   $('hudNome').textContent = prova ? 'Anteprima della verifica' : (cfg.titolo || 'Simulazione della verifica');
   $('hudSub').textContent = `${SZ.nome} · ${coda.length} domande`;
   $('hudPods').hidden = false; $('stat').textContent = '';
-  vistaIntera(); sulClic = null; etichetteOn = false;
-  svg.parentElement.classList.remove('interattivo');
+  vistaIntera(); sulClic = null; sulPunto = null; etichetteOn = false;
+  svg.parentElement.classList.remove('interattivo', 'geo-clic'); $('gioco').classList.remove('modo-geo');
   mostra('gioco');
   timer = setInterval(aggiornaStat, 1000);
   domandaVerifica();
