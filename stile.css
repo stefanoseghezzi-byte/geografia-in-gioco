@@ -674,3 +674,6 @@ svg#mappa .fis.pt.sel { fill: var(--sel); stroke: #04222B; stroke-width: 2; }
 /* su schermi stretti la foto sta sopra la mappa */
 @media (max-width: 1099px) { #gioco.modo-geo .lato { order: -1; } .geo-img img { max-height: 34vh; } }
 @media (max-width: 700px) { #gioco.modo-geo .domanda small { display: none; } .geo-img img { max-height: 28vh; } }
+.geo-foto .geo-pano { width: 100%; height: 340px; border: 1px solid var(--bordo); border-radius: 18px; overflow: hidden; background: var(--scheda2); display: grid; place-items: center; }
+.geo-attesa { margin: 0; padding: 16px; color: var(--tenue); text-align: center; }
+@media (max-width: 1099px) { .geo-foto .geo-pano { height: 42vh; } }

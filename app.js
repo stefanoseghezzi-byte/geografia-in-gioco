@@ -58,6 +58,7 @@ const GIOCHI = [
   { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi l\'area', desc: 'Seleziona sulla mappa tutte le regioni dell\'Italia settentrionale, centrale o meridionale.', modo: 'stati', sez: ['italia'], ent: 'reg' },
   { id: 'identita', ico: '🪪', ic: 'carta', nome: 'Carta d\'identità', desc: 'Area, abitanti, superficie: quanto conosci le regioni?', modo: 'stati', sez: ['italia'], ent: 'reg' },
   { id: 'geo', ico: '📷', ic: 'foto', nome: 'Dove è stata scattata?', desc: 'Guarda la foto di un luogo famoso e clicca sulla mappa dove pensi che sia: più ti avvicini, più punti fai.', modo: 'stati', sez: TRE },
+  { id: 'geo360', base: 'geo', ico: '🧭', ic: 'giro', nome: 'Dove mi trovo? (360°)', desc: 'Sei in una strada vera: gira lo sguardo tutto intorno, cerca gli indizi (cartelli, lingua, paesaggio) e clicca sulla mappa dove pensi di essere.', modo: 'stati', sez: TRE },
   { id: 'continente', ico: '🧭', ic: 'globo', nome: 'In che continente?', desc: 'Uno Stato è evidenziato: scegli il continente in cui si trova.', modo: 'stati', sez: ['mondo'] },
   { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi il continente', desc: 'Seleziona sulla mappa tutti gli Stati di un continente.', modo: 'stati', sez: ['mondo'] },
   { id: 'ue', ico: '🇪🇺', ic: 'bandiera', nome: 'UE o non UE?', desc: 'Lo Stato evidenziato fa parte dell\'Unione europea?', modo: 'stati', sez: ['europa'] },
@@ -138,6 +139,7 @@ const ICONE = {
   sole: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   spunta: '<path d="m5 12 5 5 9-10"/>',
   matita: '<path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  giro: '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.5 2.5V6.5h-4"/><ellipse cx="12" cy="12" rx="8.5" ry="3"/>',
   foto: '<path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h2l1.5-2h6l1.5 2h2A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.5"/>',
 };
 const icona = (n, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n] || ''}</svg>`;
@@ -233,6 +235,7 @@ async function impostaSezione(id) {
   const z = SEZIONI[id] || SEZIONI.europa;
   if (z.id === 'mondo') { await carica('dati/mondo.js'); await carica('mondo-paesi.js'); await carica('dati/mondo-fisico.js'); }
   if (!window.LUOGHI) await carica('dati/luoghi.js');
+  if (!window.STRADE) await carica('dati/strade.js');
   if (z.id === 'italia') { await carica('dati/italia.js'); await carica('italia-dati.js'); await carica('dati/italia-fisico.js'); }
   SZ = z; sezione = z.id; mem.set('sez', z.id);
   CATS.forEach((c, i) => Object.assign(c, CATS_BASE[i], z.id === 'italia' ? CATS_ITALIA[c.id] : null));
@@ -256,7 +259,7 @@ async function impostaSezione(id) {
     P.forEach(p => { if (!p.confFatto) { p.conf = (E.conf[p.id] || []).filter(x => nomi[x] && x !== p.id).map(x => nomi[x]); p.confFatto = true; } });
     SZ.aree = window.CONTINENTI;
   }
-  per = Object.fromEntries(P.map(p => [p.id, p])); fis = Object.fromEntries(F.map(f => [f.id, f])); LUO = Object.fromEntries(window.LUOGHI.map(l => [l.id, l]));
+  per = Object.fromEntries(P.map(p => [p.id, p])); fis = Object.fromEntries(F.map(f => [f.id, f])); LUO = Object.fromEntries([...window.LUOGHI, ...window.STRADE].map(l => [l.id, l]));
   proj = null;
   if (!SZ.moduli.some(([m, , off]) => m === modo && !off)) { modo = 'stati'; mem.set('modo', modo); }
   cats = mem.get('cats' + SZ.suf, catsSez().map(c => c.id)).filter(c => catsSez().some(x => x.id === c));
@@ -538,6 +541,7 @@ function pulisciStati() {
   [...Object.values(elem), ...Object.values(elemF)].forEach(l => l.forEach(e => e.classList.remove('evidenzia', 'sel', 'giusto', 'sbagliato', 'manca', 'ue', ...CLS_CONT)));
   if (ITA()) gMarker.querySelectorAll('circle').forEach(c => raggioMarker(c, Math.max(vb.w / E.W, SZ.mk[1])));
   if (gGeo) { gGeo.remove(); gGeo = null; }
+  if (panoV) { try { panoV.destroy(); } catch {} panoV = null; }
 }
 
 // zoom e spostamento
@@ -680,9 +684,9 @@ function avvia(gioco, soloIds) {
   $('hudPods').hidden = gioco === 'studio' || gioco === 'risiko';
   $('pips').hidden = true; $('progBox').hidden = true; $('stat').textContent = '';
   vistaIntera(); sulClic = null; sulPunto = null; etichetteOn = false;
-  svg.parentElement.classList.remove('interattivo', 'geo-clic'); $('gioco').classList.toggle('modo-geo', gioco === 'geo'); $('gioco').classList.toggle('modo-band', gioco === 'bandiere');
+  svg.parentElement.classList.remove('interattivo', 'geo-clic'); $('gioco').classList.toggle('modo-geo', S.base === 'geo'); $('gioco').classList.toggle('modo-band', gioco === 'bandiere');
   mostra('gioco');
-  if (gioco === 'geo') return avviaGeo(soloIds);
+  if (S.base === 'geo') return avviaGeo(soloIds);
   if (gioco === 'risiko') return avviaRisiko();
   if (gioco === 'legami') return avviaLegami(soloIds);
   if (gioco === 'elementi') return avviaElementi(soloIds);
@@ -892,8 +896,9 @@ function showMsg(html, cls) { $('pannello').innerHTML = `<div class="msg ${cls |
 // ---------- Dove è stata scattata? (come GeoGuessr: una foto, si clicca sulla mappa dove si pensa che sia) ----------
 // punteggio di una risposta: pieno entro r0 km, poi cala con la distanza (a r0 + k km vale circa un terzo); è giusta da 0,5 in su
 const GEO = { italia: { r0: 10, k: 90 }, europa: { r0: 40, k: 350 }, mondo: { r0: 150, k: 1400 } };
-const poolGeo = liv => window.LUOGHI.filter(l => l.sez.includes(SZ.id) && l.liv <= liv);
-let proj = null, gGeo = null;
+// «Dove è stata scattata?» usa le foto dei luoghi famosi, «Dove mi trovo? (360°)» le foto sferiche delle strade (Mapillary)
+const poolGeo = (liv, gioco) => (gioco === 'geo360' ? window.STRADE : window.LUOGHI).filter(l => l.sez.includes(SZ.id) && l.liv <= liv);
+let proj = null, gGeo = null, panoV = null;
 // le stesse proiezioni con cui tools/ ha disegnato le carte (proiezione*.mjs), per passare dal punto cliccato a latitudine e longitudine
 function proiezione() {
   const d3 = window.d3, cornice = (lon, lat) => {
@@ -910,17 +915,25 @@ function proiezione() {
 }
 const kmTra = ([lon1, lat1], [lon2, lat2]) => { const r = Math.PI / 180, a = Math.sin((lat2 - lat1) * r / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin((lon2 - lon1) * r / 2) ** 2; return 12742 * Math.asin(Math.min(1, Math.sqrt(a))); };
 const fmtKm = d => d < 1 ? 'meno di 1 km' : fmt(Math.round(d)) + ' km';
-const creditoFoto = (l, link) => `Foto: ${link ? `<a href="${l.pag}" target="_blank" rel="noopener">${l.aut}</a>` : l.aut}${l.lic ? ' · ' + l.lic : ''} · Wikimedia Commons`;
+const creditoFoto = (l, link) => l.pano
+  ? `Foto: ${link ? `<a href="https://www.mapillary.com/app/?pKey=${l.pano}" target="_blank" rel="noopener">${l.aut || 'Mapillary'}</a>` : l.aut || 'Mapillary'}${l.anno ? ' (' + l.anno + ')' : ''} · CC BY-SA 4.0 · Mapillary`
+  : `Foto: ${link ? `<a href="${l.pag}" target="_blank" rel="noopener">${l.aut}</a>` : l.aut}${l.lic ? ' · ' + l.lic : ''} · Wikimedia Commons`;
 async function avviaGeo(soloIds) {
   $('domanda').textContent = 'Preparo le foto…'; $('pannello').innerHTML = '';
   const tok = S;
-  try { await carica('lib/d3-array.min.js'); await carica('lib/d3-geo.min.js'); }
+  try {
+    await carica('lib/d3-array.min.js'); await carica('lib/d3-geo.min.js');
+    if (S.gioco === 'geo360') {
+      if (!$('cssPano')) { const c = document.createElement('link'); c.id = 'cssPano'; c.rel = 'stylesheet'; c.href = 'lib/pannellum.css'; document.head.appendChild(c); }
+      await carica('lib/pannellum.js');
+    }
+  }
   catch { $('domanda').textContent = 'Non riesco a caricare il gioco: controlla la connessione e riprova.'; return; }
   if (S !== tok) return;
   if (!proj) proj = proiezione();
   // cartina politica senza nomi (in Italia solo le regioni: i punti delle città sarebbero un aiuto)
   impostaPool(P.filter(p => !p.citta).map(p => p.id), 'stati'); pulisciStati();
-  S.pool = soloIds ? soloIds.filter(id => LUO[id]) : poolGeo(livello).map(l => l.id);
+  S.pool = soloIds ? soloIds.filter(id => LUO[id]) : poolGeo(livello, S.gioco).map(l => l.id);
   let coda = mescola(S.pool);
   if (!soloIds && quantita) coda = coda.slice(0, quantita);
   S.coda = coda;
@@ -929,14 +942,20 @@ async function avviaGeo(soloIds) {
 }
 function domandaGeo(id) {
   const l = LUO[id], prossimo = LUO[S.coda[S.i + 1]];
-  if (prossimo) new Image().src = prossimo.foto;   // la foto successiva arriva già scaricata
+  if (prossimo && prossimo.foto) new Image().src = prossimo.foto;   // la foto successiva arriva già scaricata
   vistaIntera(); svg.parentElement.classList.add('geo-clic');
-  $('domanda').innerHTML = `Dove è stata scattata questa foto?<small>Clicca sulla mappa il punto più vicino possibile, poi conferma. Puoi ingrandire la mappa e toccare la foto per vederla grande.</small>`;
   const fig = document.createElement('figure'); fig.className = 'geo-foto';
-  fig.innerHTML = `<button type="button" class="geo-img" aria-label="Ingrandisci la foto"><img src="${l.foto}" alt="Foto del luogo da trovare" width="${l.w}" height="${l.h}"></button><figcaption>${creditoFoto(l, false)}</figcaption>`;
-  fig.querySelector('button').onclick = () => lenteFoto(l);
+  if (l.pano) {
+    $('domanda').innerHTML = `Dove ti trovi?<small>Trascina la foto per guardarti intorno e cerca gli indizi: cartelli, scritte, auto, case, piante. Poi clicca sulla mappa e conferma.</small>`;
+    fig.innerHTML = `<div class="geo-pano" id="geoPano" role="img" aria-label="Foto a 360° del luogo da trovare: trascinala per guardarti intorno"></div><figcaption>${creditoFoto(l, false)}</figcaption>`;
+  } else {
+    $('domanda').innerHTML = `Dove è stata scattata questa foto?<small>Clicca sulla mappa il punto più vicino possibile, poi conferma. Puoi ingrandire la mappa e toccare la foto per vederla grande.</small>`;
+    fig.innerHTML = `<button type="button" class="geo-img" aria-label="Ingrandisci la foto"><img src="${l.foto}" alt="Foto del luogo da trovare" width="${l.w}" height="${l.h}"></button><figcaption>${creditoFoto(l, false)}</figcaption>`;
+    fig.querySelector('button').onclick = () => lenteFoto(l);
+  }
   const ok = document.createElement('button'); ok.className = 'primario'; ok.disabled = true; ok.innerHTML = 'Clicca prima sulla mappa';
   $('pannello').append(fig, ok);
+  if (l.pano) apriPano(l);
   let punto = null, pin = null;
   sulPunto = q => {
     if (S.blocca) return;
@@ -949,6 +968,22 @@ function domandaGeo(id) {
     ok.disabled = false; ok.innerHTML = 'Conferma il punto <span class="tasto">INVIO</span>';
   };
   ok.onclick = () => { if (punto && !S.blocca) rispondiGeo(l, punto); };
+}
+// foto sferica di Mapillary nel visore Pannellum (si gira trascinando); l'indirizzo dell'immagine scade, quindi lo chiede ogni volta a api/pano
+async function apriPano(l) {
+  const tok = S, i = S.i, box = $('geoPano');
+  box.innerHTML = '<p class="geo-attesa">Carico la foto a 360°…</p>';
+  let url = null;
+  try { const r = await fetch('api/pano?id=' + l.pano); if (r.ok) url = (await r.json()).url; } catch {}
+  if (S !== tok || S.i !== i || !document.body.contains(box)) return;
+  if (!url) {   // foto non disponibile: si passa alla prossima senza contarla (se non ne arriva nessuna, il servizio non risponde)
+    S.panoKo = (S.panoKo || 0) + 1;
+    if (S.panoKo >= 3 || S.coda.length <= 1) { clearInterval(timer); box.innerHTML = '<p class="geo-attesa">Le foto a 360° non sono disponibili in questo momento. Riprova più tardi o gioca a «Dove è stata scattata?».</p>'; return; }
+    box.innerHTML = '<p class="geo-attesa">Questa foto non è disponibile: passo alla prossima…</p>';
+    return setTimeout(() => { if (S === tok && S.i === i) { S.coda.splice(i, 1); prossima(); } }, 1500);
+  }
+  S.panoKo = 0; box.innerHTML = '';
+  panoV = window.pannellum.viewer(box, { type: 'equirectangular', panorama: url, autoLoad: true, hfov: 100, minHfov: 40, showZoomCtrl: true, showFullscreenCtrl: true, compass: false, keyboardZoom: false, strings: { loadingLabel: 'Carico…' } });
 }
 function rispondiGeo(l, punto) {
   S.blocca = true; sulPunto = null; svg.parentElement.classList.remove('geo-clic');
@@ -967,7 +1002,7 @@ function rispondiGeo(l, punto) {
   else { vb = { x: (vx + punto.x) / 2 - w / 2, y: (vy + punto.y) / 2 - w * E.H / E.W / 2, w, h: w * E.H / E.W }; applicaVista(); }
   const titolo = f >= 0.9 ? 'Centrato!' : ok ? 'Ci sei quasi!' : f >= 0.2 ? 'Un po\' lontano.' : 'Molto lontano.';
   const m = document.createElement('div'); m.className = 'msg ' + (ok ? 'ok' : 'ko');
-  m.innerHTML = titoloEsito(titolo, bonus) + `<span class="geo-dist">Eri a <b>${fmtKm(d)}</b> · precisione <b>${Math.round(f * 100)}%</b></span><b>${l.nome}</b> · ${l.dove}. ${l.info}<small class="geo-cred">${creditoFoto(l, true)}</small>`;
+  m.innerHTML = titoloEsito(titolo, bonus) + `<span class="geo-dist">Eri a <b>${fmtKm(d)}</b> · precisione <b>${Math.round(f * 100)}%</b></span>${l.pano ? 'Eri a ' : ''}<b>${l.nome}</b> · ${l.dove}.${l.info ? ' ' + l.info : ''}<small class="geo-cred">${creditoFoto(l, true)}</small>`;
   $('pannello').querySelector('.primario').remove();
   $('pannello').appendChild(m); avanti(); aggiornaStat();
 }
