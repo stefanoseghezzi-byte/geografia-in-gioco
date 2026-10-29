@@ -53,6 +53,7 @@ const GIOCHI = [
   { id: 'indovinaCitta', base: 'indovina', ico: '❓', ic: 'domanda', nome: 'Che città è?', desc: 'Un capoluogo è evidenziato sulla mappa: scegli il nome giusto.', modo: 'stati', sez: ['italia'], ent: 'citta' },
   { id: 'capitali', ico: '🏛️', ic: 'colonne', nome: 'Le capitali', desc: 'Uno Stato è evidenziato: scegli la sua capitale.', modo: 'stati', sez: TUTTE },
   { id: 'capitali', ico: '🏛️', ic: 'colonne', nome: 'I capoluoghi di regione', desc: 'Una regione è evidenziata: scegli il suo capoluogo.', modo: 'stati', sez: ['italia'], ent: 'reg' },
+  { id: 'bandiere', ico: '🚩', ic: 'bandiera', nome: 'Le bandiere', desc: 'Guarda la bandiera e scegli lo Stato a cui appartiene.', modo: 'stati', sez: TUTTE },
   { id: 'regioneDi', ico: '🧭', ic: 'globo', nome: 'In che regione si trova?', desc: 'Un capoluogo è evidenziato: scegli la regione in cui si trova.', modo: 'stati', sez: ['italia'], ent: 'citta' },
   { id: 'coloraCont', ico: '🟩', ic: 'griglia', nome: 'Componi l\'area', desc: 'Seleziona sulla mappa tutte le regioni dell\'Italia settentrionale, centrale o meridionale.', modo: 'stati', sez: ['italia'], ent: 'reg' },
   { id: 'identita', ico: '🪪', ic: 'carta', nome: 'Carta d\'identità', desc: 'Area, abitanti, superficie: quanto conosci le regioni?', modo: 'stati', sez: ['italia'], ent: 'reg' },
@@ -74,7 +75,7 @@ const GIOCHI = [
 ];
 // il gioco con questo id nella sezione attiva (alcuni giochi hanno nomi e testi diversi nella sezione Italia)
 const giocoDi = (id, m) => GIOCHI.find(x => x.id === id && x.modo === m && x.sez.includes(SZ.id)) || GIOCHI.find(x => x.id === id && x.modo === m);
-const TIPI_BASE = { cont: 'continente', elementi: 'elementi collegati', stati: 'Stati collegati', moneta: 'moneta', lingua: 'lingua', area: 'posizione', abitanti: 'abitanti', superficie: 'superficie', ue: 'UE', cap: 'capitale', reg: 'regione' };
+const TIPI_BASE = { cont: 'continente', elementi: 'elementi collegati', stati: 'Stati collegati', moneta: 'moneta', lingua: 'lingua', area: 'posizione', abitanti: 'abitanti', superficie: 'superficie', ue: 'UE', cap: 'capitale', reg: 'regione', band: 'bandiera' };
 const TIPI = { ...TIPI_BASE };
 
 // ---------- memoria locale (impostazioni, profili, statistiche) ----------
@@ -679,7 +680,7 @@ function avvia(gioco, soloIds) {
   $('hudPods').hidden = gioco === 'studio' || gioco === 'risiko';
   $('pips').hidden = true; $('progBox').hidden = true; $('stat').textContent = '';
   vistaIntera(); sulClic = null; sulPunto = null; etichetteOn = false;
-  svg.parentElement.classList.remove('interattivo', 'geo-clic'); $('gioco').classList.toggle('modo-geo', gioco === 'geo');
+  svg.parentElement.classList.remove('interattivo', 'geo-clic'); $('gioco').classList.toggle('modo-geo', gioco === 'geo'); $('gioco').classList.toggle('modo-band', gioco === 'bandiere');
   mostra('gioco');
   if (gioco === 'geo') return avviaGeo(soloIds);
   if (gioco === 'risiko') return avviaRisiko();
@@ -765,7 +766,7 @@ function prossima() {
   }
   svg.parentElement.classList.remove('interattivo'); sulClic = null;
   if (g === 'identita') return domandaIdentita(id);
-  statoClasse(id, 'evidenzia'); vaiA(id);
+  if (g !== 'bandiere') { statoClasse(id, 'evidenzia'); vaiA(id); }
   if (g === 'indovina' && fis[id]) {
     const cf = cat(fis[id].cat), a = fis[id].c;
     const dist = x => Math.hypot(a[0] - x.c[0], a[1] - x.c[1]);
@@ -787,6 +788,8 @@ function prossima() {
     $('domanda').innerHTML = g === 'indovina' ? (ITA() ? (citta(id) ? 'Quale città è evidenziata?' : 'Quale regione è evidenziata?') : 'Quale Stato è evidenziato?')
       : ITA() ? `<b>${nome(id)}</b>: qual è il capoluogo di regione?` : `<b>${nome(id)}</b>: qual è la capitale?`;
     scegli(opz.map(o => ({ testo: o[chiave], ok: o.id === id })), ok => esito(id, ok, infoPaese(per[id]), g === 'capitali' ? id + '|cap' : id));
+  } else if (g === 'bandiere') {
+    domandaBandiera(id);
   } else if (g === 'regioneDi') {
     const p = per[id], a = E.centri[id];
     const vicine = P.filter(r => !r.citta && r.id !== p.reg).map(r => ({ r, d: Math.hypot(E.centri[r.id][0] - a[0], E.centri[r.id][1] - a[1]) }))
@@ -803,6 +806,26 @@ function prossima() {
     $('domanda').innerHTML = `<b>${p.nome}</b> fa parte dell'Unione europea?`;
     scegli([{ testo: 'Sì, è nell\'UE', ok: p.ue }, { testo: 'No, è fuori dall\'UE', ok: !p.ue }], ok => esito(id, ok, infoPaese(p), id + '|ue'));
   }
+}
+// ---------- Le bandiere: si vede una bandiera e si sceglie lo Stato (la mappa lo mostra solo dopo la risposta) ----------
+// bandiere che si somigliano: tra le risposte sbagliate si preferiscono queste, poi gli Stati vicini
+const BAND_SIMILI = [
+  'ROU TCD AND MDA', 'IDN MCO POL SGP', 'IRL CIV ITA MEX HUN', 'NLD LUX FRA RUS HRV SRB SVN SVK PRY', 'BEL DEU',
+  'AUS NZL GBR', 'NOR ISL DNK SWE FIN', 'COL ECU VEN', 'EGY IRQ SYR YEM', 'SEN MLI GIN CMR GHA', 'HND NIC SLV GTM ARG',
+  'AUT LVA LBN PER CAN', 'QAT BHR', 'ARE KWT JOR PSX SDN', 'USA LBR MYS CHL', 'LTU BOL ETH GHA', 'BGR IRN TJK HUN', 'CHN VNM',
+  'JPN BGD PLW', 'TUR TUN', 'GRC URY CUB', 'CZE PHL', 'IND NER', 'KEN SDS MWI', 'HTI LIE', 'EST BWA', 'UKR SWE', 'ALB MNE',
+].map(r => r.split(' '));
+const bandiera = id => `bandiere/${id}.svg`;
+function domandaBandiera(id) {
+  vistaIntera();
+  const prossimo = S.coda[S.i + 1];
+  if (prossimo) new Image().src = bandiera(prossimo);   // la bandiera successiva arriva già scaricata
+  const simili = [...new Set(BAND_SIMILI.filter(r => r.includes(id)).flat())].filter(x => x !== id && per[x]);
+  const a = E.centri[id], vicini = P.filter(p => p.id !== id && E.centri[p.id] && !simili.includes(p.id))
+    .map(p => ({ p, d: Math.hypot(a[0] - E.centri[p.id][0], a[1] - E.centri[p.id][1]) })).sort((x, y) => x.d - y.d).slice(0, 8).map(o => o.p.id);
+  const altri = [...mescola(simili).slice(0, 2), ...mescola(vicini)].slice(0, 3);
+  $('domanda').innerHTML = `A quale Stato appartiene questa bandiera?<span class="band-box"><img class="band-img" src="${bandiera(id)}" alt="Bandiera da riconoscere"></span>`;
+  scegli(mescola([id, ...altri]).map(x => ({ testo: per[x].nome, ok: x === id })), ok => { vaiA(id); esito(id, ok, infoPaese(per[id]), id + '|band'); });
 }
 function scegli(opzioni, fine) {
   const box = document.createElement('div'); box.className = 'risposte' + (opzioni.length > 4 ? ' molte' : '');

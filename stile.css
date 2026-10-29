@@ -209,6 +209,7 @@ footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--bordo)
 .card .gioca svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
 .card.spento { opacity: .5; }
 .card.spento:hover { transform: none; }
+.card-bandiere { --c: #FF6B8A; } :root[data-tema="chiaro"] .card-bandiere { --c: #C2334F; }
 .card-trova { --c: var(--oro); } .card-indovina { --c: var(--viola); } .card-capitali { --c: #FF8A65; } .card-ue, .card-continente { --c: #6EA8FF; }
 .card-coloraUE, .card-coloraCont { --c: #3DDCC4; } .card-identita { --c: #FF7EB6; } .card-legami { --c: #A3E635; } .card-elementi { --c: var(--ciano); } .card-studio { --c: var(--ciano); }
 :root[data-tema="chiaro"] .card { --oro: #B07A00; }
@@ -650,6 +651,11 @@ svg#mappa .fis.pt.sel { fill: var(--sel); stroke: #04222B; stroke-width: 2; }
 .card-geo { --c: #FFB86B; }
 :root[data-tema="chiaro"] .card-geo { --c: #B8620A; }
 .geo-clic #mappa { cursor: crosshair; }
+.band-box { display: block; margin-top: 14px; }
+.band-img { display: block; width: 100%; max-width: 280px; aspect-ratio: 4 / 3; margin: 0 auto; border-radius: 10px; box-shadow: 0 0 0 1px var(--bordo2), 0 10px 26px rgba(0, 0, 0, .3); }
+/* su schermi stretti la bandiera sta sopra la mappa */
+@media (max-width: 1099px) { #gioco.modo-band .lato { order: -1; } }
+@media (max-width: 700px) { .band-img { max-width: 150px; } #gioco.modo-band .domanda { font-size: 1.05rem; } }
 .geo-foto { margin: 0; }
 .geo-img { display: block; width: 100%; padding: 0; border: 1px solid var(--bordo); border-radius: 18px; overflow: hidden; background: var(--scheda2); cursor: zoom-in; }
 .geo-img img { display: block; width: 100%; height: auto; max-height: 46vh; object-fit: cover; }
